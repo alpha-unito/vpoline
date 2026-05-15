@@ -21,17 +21,15 @@ Stats compute_stats(unsigned long long *data, size_t size) {
     Stats s = {0.0, 0.0};
     if (size <= 1) return s;
 
-    // Calcolo della media
     double sum = 0.0;
     for (size_t i = 0; i < size; i++) {
         sum += (double)data[i];
     }
     s.mean = sum / size;
 
-    // Calcolo della deviazione standard campionaria
     double variance_sum = 0.0;
     for (size_t i = 0; i < size; i++) {
-        variance_sum += ((double)data[i] - s.mean) * ((double)data[i] - s.mean);
+        variance_sum += pow(data[i]-s.mean,2);//((double)data[i] - s.mean) * ((double)data[i] - s.mean);
     }
     s.stddev = sqrt(variance_sum / (size - 1));
 
@@ -47,6 +45,7 @@ void run_benchmark(const char *test_name, int repetitions, long syscallno, long 
         syscall(syscallno, arg0, arg1, arg2, arg3, arg4, arg5);
         clock_gettime(CLOCK_MONOTONIC, &end);
 
+        /* when measuring clone, we're not interested in child thread */
         if (syscall(SYS_gettid) != thread_id) {
             exit(EXIT_SUCCESS);
         }
@@ -62,11 +61,6 @@ void run_benchmark(const char *test_name, int repetitions, long syscallno, long 
     fprintf(out_file,"    \"name\": \"%s\",\n", test_name);
     fprintf(out_file,"    \"avg_ns\": %.2f,\n", s.mean);
     fprintf(out_file,"    \"stddev_ns\": %.2f\n", s.stddev);
-    // fprintf(ou_file,"    \"measures\": [");
-    // for (int i = 0; i < repetitions; i++) {
-    //     fprintf(ou_file,"%llu%s", measurements[i], (i == repetitions - 1) ? "" : ", ");
-    // }
-    // fprintf(out_file,"]\n");
     fprintf(out_file,"  }");
 
     free(measurements);
