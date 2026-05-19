@@ -438,6 +438,12 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
             *(uint32_t *)ctx->uc_mcontext.__gregs[REG_PC]);
         *(uint32_t *)ctx->uc_mcontext.__gregs[REG_PC] = 0x050181e7; // jalr gp, gp, 80
 
+#ifndef __NR_riscv_flush_icache
+#define __NR_riscv_flush_icache 259
+#endif
+        uintptr_t patch_addr = ctx->uc_mcontext.__gregs[REG_PC];
+        syscall_no_intercept(__NR_riscv_flush_icache, patch_addr, patch_addr + pc_step, 0);
+
         long ret_prot2 = syscall_no_intercept(SYS_mprotect, page_start, prot_len,
                                               PROT_READ | PROT_EXEC);
         if ((unsigned long)ret_prot2 > -4096UL) {

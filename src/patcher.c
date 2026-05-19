@@ -16,6 +16,7 @@
 
 
 #include "patcher.h"
+#include "sigsegv_handler.h"
 
 #include <assert.h>
 #include <dlfcn.h>
