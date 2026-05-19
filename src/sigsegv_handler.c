@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "sigsegv_handler.h"
 #include "rv_opcodes.h"
 
@@ -27,8 +31,15 @@
 #include <bits/sigaction.h>
 #include <inttypes.h>
 #include <syscall.h>
+#include <sys/mman.h>
+
+#include "patcher.h"
 
 extern long syscall_no_intercept(long, ...);
+
+gp_instr_t *gp_instruction_map = NULL;
+size_t map_capacity = 0;
+size_t map_size = 0;
 
 static inline uint8_t get_field(const uint32_t instr, const uint32_t start,
                          const uint32_t len)
@@ -219,6 +230,48 @@ void emulate_sp_rel_c_load_store_instruction(ucontext_t *ctx, const uint8_t func
     }
 }
 
+void register_instruction(uintptr_t addr, uint32_t encoding) {
+
+    if (gp_instruction_map == NULL) {
+
+        map_capacity = INITIAL_CAPACITY;
+        long ret = syscall_no_intercept(SYS_mmap, 0, map_capacity * sizeof(gp_instr_t),
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        if ((unsigned long)ret > -4096UL) {
+            const char err_msg[] = "Error: Failed to allocate memory for GP-relative instruction map\n";
+            syscall_no_intercept(SYS_write, 2, err_msg, sizeof(err_msg) - 1);
+#ifdef DEBUG
+            __builtin_trap();
+#endif
+            syscall_no_intercept(SYS_exit_group, 1);
+        }
+        gp_instruction_map = (gp_instr_t *)ret;
+
+    } else if (map_size >= map_capacity) {
+
+        size_t old_size = map_capacity * sizeof(gp_instr_t);
+        map_capacity *= 2;
+        size_t new_size = map_capacity * sizeof(gp_instr_t);
+        long ret = syscall_no_intercept(SYS_mremap, gp_instruction_map,
+                                        old_size, new_size, MREMAP_MAYMOVE);
+        if ((unsigned long)ret > -4096UL) {
+            const char err_msg[] = "Error: Failed to reallocate memory for GP-relative instruction map\n";
+            syscall_no_intercept(SYS_write, 2, err_msg, sizeof(err_msg) - 1);
+#ifdef DEBUG
+            __builtin_trap();
+#endif
+            syscall_no_intercept(SYS_exit_group, 1);
+        }
+
+        gp_instruction_map = (gp_instr_t *)ret;
+    }
+
+    gp_instruction_map[map_size].address = addr;
+    gp_instruction_map[map_size].encoding = encoding;
+    map_size++;
+}
+
 void segfault_handler(int sig, siginfo_t *si, void *context)
 {
 
@@ -359,6 +412,43 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
     }
 
     const int pc_step = is_32bit ? 4 : 2;
+
+    if (is_32bit) {
+
+        const uintptr_t page_start = pc & ~(page_size -1);
+        const size_t prot_len = ((pc + 4 - page_start) <= page_size) ? page_size : page_size*2;
+
+        long ret_prot1 = syscall_no_intercept(SYS_mprotect, page_start, prot_len,
+                                              PROT_READ | PROT_WRITE | PROT_EXEC);
+        if ((unsigned long)ret_prot1 > -4096UL) {
+            const char err_msg[] = "Error: mprotect failed to unlock text page\n";
+            syscall_no_intercept(SYS_write, 2, err_msg, sizeof(err_msg) - 1);
+#ifdef DEBUG
+            __builtin_trap();
+#endif
+            syscall_no_intercept(SYS_exit_group, 1);
+        }
+
+        /*
+         * this occurrence of a GP-related memory accessing instruction has been
+         * handled. We can now save address and encoding of such instruction and
+         * rewrite it with jalr gp, gp, 80
+         */
+        register_instruction(ctx->uc_mcontext.__gregs[REG_PC],
+            *(uint32_t *)ctx->uc_mcontext.__gregs[REG_PC]);
+        *(uint32_t *)ctx->uc_mcontext.__gregs[REG_PC] = 0x050181e7; // jalr gp, gp, 80
+
+        long ret_prot2 = syscall_no_intercept(SYS_mprotect, page_start, prot_len,
+                                              PROT_READ | PROT_EXEC);
+        if ((unsigned long)ret_prot2 > -4096UL) {
+            const char err_msg[] = "Error: mprotect failed to lock text page\n";
+            syscall_no_intercept(SYS_write, 2, err_msg, sizeof(err_msg) - 1);
+#ifdef DEBUG
+            __builtin_trap();
+#endif
+            syscall_no_intercept(SYS_exit_group, 1);
+        }
+    }
 
     /*
      * incrementing PC to resume execution at first instruction after the one

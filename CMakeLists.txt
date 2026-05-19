@@ -56,6 +56,7 @@ set(VPOLINE_SOURCES
         src/utils.c
         src/patcher.c
         src/sigsegv_handler.c
+        src/gp_fault_handler.c
 )
 
 add_library(vpoline SHARED ${VPOLINE_SOURCES})
