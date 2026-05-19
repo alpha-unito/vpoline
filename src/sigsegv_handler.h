@@ -25,6 +25,29 @@ extern ReturnSequenceInfo rsi;
 
 // void segfault_handler(int sig, siginfo_t *si, void *context);
 
+/*
+ * the layout of this struct is dependent on which order registers get saved
+ * on the stack in patcher.c:104-169
+ */
+struct context {
+    uint64_t ra;
+    uint64_t gp;
+    uint64_t tp;
+    uint64_t t[7];
+    uint64_t a[8];
+    uint64_t s[12];
+    uint64_t ft[12];
+    uint64_t fs[12];
+    uint64_t fa[8];
+};
+
+typedef struct {
+    uintptr_t address;
+    uint32_t encoding;
+} gp_instr_t;
+
+#define INITIAL_CAPACITY 64
+
 /**
  * Sets up segfault_handler() as the handling function for SIGSEGV signals. In
  * other words, segfault_handler() will be executed at each segmentation fault.

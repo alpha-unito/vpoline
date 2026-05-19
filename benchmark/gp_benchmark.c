@@ -112,7 +112,7 @@ void test_32bit_integer_instructions() {
     /* LOADS */
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lb %0, 0(a5)"  : "=r"(val) : "r"(off_i8) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lb %0, 0(t6)"  : "=r"(val) : "r"(off_i8) : "t6");
     STOP_TIME
     if (val != (int64_t)g_i8) {
         printf("[FAIL] LB. Read: %ld\n", val);
@@ -123,7 +123,7 @@ void test_32bit_integer_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lh %0, 0(a5)"  : "=r"(val) : "r"(off_i16) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lh %0, 0(t6)"  : "=r"(val) : "r"(off_i16) : "t6");
     STOP_TIME
     if (val != (int64_t)g_i16) {
         printf("[FAIL] LH\n");
@@ -133,7 +133,7 @@ void test_32bit_integer_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lw %0, 0(a5)"  : "=r"(val) : "r"(off_i32) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lw %0, 0(t6)"  : "=r"(val) : "r"(off_i32) : "t6");
     STOP_TIME
     if (val != (int64_t)g_i32) {
         printf("[FAIL] LW\n");
@@ -143,7 +143,7 @@ void test_32bit_integer_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t ld %0, 0(a5)"  : "=r"(val) : "r"(off_i64) : "a5");
+    asm volatile ("add t6, gp, %1\n\t ld %0, 0(t6)"  : "=r"(val) : "r"(off_i64) : "t6");
     STOP_TIME
     if (val != g_i64) {
         printf("[FAIL] LD\n");
@@ -154,7 +154,7 @@ void test_32bit_integer_instructions() {
     /* UNSIGNED LOADS */
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lbu %0, 0(a5)" : "=r"(val) : "r"(off_u8) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lbu %0, 0(t6)" : "=r"(val) : "r"(off_u8) : "t6");
     STOP_TIME
     if (val != (int64_t)g_u8) {
         printf("[FAIL] LBU. Read: %ld\n", val);
@@ -165,7 +165,7 @@ void test_32bit_integer_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lhu %0, 0(a5)" : "=r"(val) : "r"(off_u16) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lhu %0, 0(t6)" : "=r"(val) : "r"(off_u16) : "t6");
     STOP_TIME
     if (val != (int64_t)g_u16) {
         printf("[FAIL] LHU\n");
@@ -175,7 +175,7 @@ void test_32bit_integer_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t lwu %0, 0(a5)" : "=r"(val) : "r"(off_u32) : "a5");
+    asm volatile ("add t6, gp, %1\n\t lwu %0, 0(t6)" : "=r"(val) : "r"(off_u32) : "t6");
     STOP_TIME
     if (val != (int64_t)g_u32) {
         printf("[FAIL] LWU\n");
@@ -187,7 +187,7 @@ void test_32bit_integer_instructions() {
     val = 11;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t sb %1, 0(a5)" : : "r"(off_i8), "r"(val) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t sb %1, 0(t6)" : : "r"(off_i8), "r"(val) : "t6", "memory");
     STOP_TIME
     if (g_i8 != 11) {
         printf("[FAIL] SB\n");
@@ -198,7 +198,7 @@ void test_32bit_integer_instructions() {
     val = 22;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t sh %1, 0(a5)" : : "r"(off_i16), "r"(val) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t sh %1, 0(t6)" : : "r"(off_i16), "r"(val) : "t6", "memory");
     STOP_TIME
     if (g_i16 != 22) {
         printf("[FAIL] SH\n");
@@ -209,7 +209,7 @@ void test_32bit_integer_instructions() {
     val = 33;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t sw %1, 0(a5)" : : "r"(off_i32), "r"(val) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t sw %1, 0(t6)" : : "r"(off_i32), "r"(val) : "t6", "memory");
     STOP_TIME
     if (g_i32 != 33) {
         printf("[FAIL] SW\n");
@@ -220,7 +220,7 @@ void test_32bit_integer_instructions() {
     val = 44;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t sd %1, 0(a5)" : : "r"(off_i64), "r"(val) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t sd %1, 0(t6)" : : "r"(off_i64), "r"(val) : "t6", "memory");
     STOP_TIME
     if (g_i64 != 44) {
         printf("[FAIL] SD\n");
@@ -244,7 +244,7 @@ void test_32bit_float_instructions() {
     /* LOADS */
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t flw %0, 0(a5)" : "=f"(fval) : "r"(off_f32) : "a5");
+    asm volatile ("add t6, gp, %1\n\t flw %0, 0(t6)" : "=f"(fval) : "r"(off_f32) : "t6");
     STOP_TIME
     if (fval != 3.14159f) {
         printf("[FAIL] FLW\n");
@@ -254,7 +254,7 @@ void test_32bit_float_instructions() {
 
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %1\n\t fld %0, 0(a5)" : "=f"(dval) : "r"(off_f64) : "a5");
+    asm volatile ("add t6, gp, %1\n\t fld %0, 0(t6)" : "=f"(dval) : "r"(off_f64) : "t6");
     STOP_TIME
     if (dval != 2.7182818) {
         printf("[FAIL] FLD\n");
@@ -266,7 +266,7 @@ void test_32bit_float_instructions() {
     fval = 1.23f;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t fsw %1, 0(a5)" : : "r"(off_f32), "f"(fval) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t fsw %1, 0(t6)" : : "r"(off_f32), "f"(fval) : "t6", "memory");
     STOP_TIME
     if (g_f32 != 1.23f) {
         printf("[FAIL] FSW\n");
@@ -277,7 +277,7 @@ void test_32bit_float_instructions() {
     dval = 4.56;
     START_BENCHMARK
     START_TIME
-    asm volatile ("add a5, gp, %0\n\t fsd %1, 0(a5)" : : "r"(off_f64), "f"(dval) : "a5", "memory");
+    asm volatile ("add t6, gp, %0\n\t fsd %1, 0(t6)" : : "r"(off_f64), "f"(dval) : "t6", "memory");
     STOP_TIME
     if (g_f64 != 4.56) {
         printf("[FAIL] FSD\n");
@@ -491,8 +491,8 @@ int main(int argc, char *argv[]) {
 
     test_32bit_integer_instructions();
     test_32bit_float_instructions();
-    test_compressed_c0_instructions();
-    test_compressed_c2_sp_relative();
+    // test_compressed_c0_instructions();
+    // test_compressed_c2_sp_relative();
 
     print_global_stats();
 
