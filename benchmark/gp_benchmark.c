@@ -20,6 +20,14 @@ struct result overall_stats[TEST_NR];
 
 int test_idx = 0;
 
+void debug_print(double bench_times[]){
+#ifdef DEBUG
+    for (int i = 0; i < ITERATIONS; i++) {
+        printf("Iteration %d: %8.2f ns\n", i, bench_times[i]);
+    }
+#endif
+}
+
 #define START_BENCHMARK \
     { \
         double bench_times[ITERATIONS]; \
@@ -46,6 +54,7 @@ int test_idx = 0;
         if (csv_file) fprintf(csv_file, "%s,%.2f,%.2f,%.2f\n", csv_tag, slow_path, fast_mean, fast_std_dev); \
         printf("[ OK ] %-20s | Slow: %9.2f ns | Fast Mean: %8.2f ns | Fast StdDev: %8.2f ns\n", \
             csv_tag, slow_path, fast_mean, fast_std_dev); \
+        debug_print(bench_times); \
     }
 
 #define START_TIME \
