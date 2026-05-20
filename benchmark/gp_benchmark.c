@@ -5,14 +5,15 @@
 #include <time.h>
 #include <math.h>
 
-#define TEST_NR 27
+#define TEST_NR 15
 #define ITERATIONS 100
 
 FILE *csv_file = NULL;
 
 struct result {
-    double mean;
-    double std_dev;
+    double slow_path;
+    double fast_mean;
+    double fast_std_dev;
 };
 
 struct result overall_stats[TEST_NR];
@@ -26,31 +27,39 @@ int test_idx = 0;
 
 #define END_BENCHMARK(csv_tag) \
         } \
-        double sum = 0.0, mean = 0.0, variance = 0.0, std_dev = 0.0; \
-        for (int j = 0; j < ITERATIONS; j++) sum += bench_times[j]; \
-        mean = sum / ITERATIONS; \
-        for (int j = 0; j < ITERATIONS; j++) variance += pow(bench_times[j] - mean, 2); \
-        variance /= (ITERATIONS-1); \
-        std_dev = sqrt(variance); \
+        double slow_path = bench_times[0]; \
+        double sum = 0.0, fast_mean = 0.0, variance = 0.0, fast_std_dev = 0.0; \
+        int fast_iters = ITERATIONS - 1; \
+        for (int j = 1; j < ITERATIONS; j++) sum += bench_times[j]; \
+        fast_mean = sum / fast_iters; \
+        for (int j = 1; j < ITERATIONS; j++) variance += pow(bench_times[j] - fast_mean, 2); \
+        variance /= (fast_iters > 1 ? fast_iters - 1 : 1); \
+        fast_std_dev = sqrt(variance); \
         if (test_idx < TEST_NR) { \
-            overall_stats[test_idx].mean = mean ; \
-            overall_stats[test_idx].std_dev = std_dev; \
+            overall_stats[test_idx].slow_path = slow_path; \
+            overall_stats[test_idx].fast_mean = fast_mean; \
+            overall_stats[test_idx].fast_std_dev = fast_std_dev; \
             test_idx++; \
         } else { \
             fprintf(stderr, "[!] Enhance TEST_NR\n"); \
         }\
-        if (csv_file) fprintf(csv_file, "%s,%.2f,%.2f\n", csv_tag, mean, std_dev); \
-        printf("[ OK ] %-20s (Mean: %8.2f ns | StdDev: %8.2f ns)\n", csv_tag, mean, std_dev); \
+        if (csv_file) fprintf(csv_file, "%s,%.2f,%.2f,%.2f\n", csv_tag, slow_path, fast_mean, fast_std_dev); \
+        printf("[ OK ] %-20s | Slow: %9.2f ns | Fast Mean: %8.2f ns | Fast StdDev: %8.2f ns\n", \
+            csv_tag, slow_path, fast_mean, fast_std_dev); \
     }
 
 #define START_TIME \
     struct timespec start, end; \
-    clock_gettime(CLOCK_MONOTONIC, &start);
+    __asm__ volatile ("" : : "g"(b_i) : "memory"); \
+    clock_gettime(CLOCK_MONOTONIC, &start); \
+    __asm__ volatile ("" : : "g"(b_i) : "memory");
 
 #define STOP_TIME \
+    __asm__ volatile ("" : : "g"(b_i) : "memory"); \
     clock_gettime(CLOCK_MONOTONIC, &end); \
+    __asm__ volatile ("" : : "g"(b_i) : "memory"); \
     bench_times[b_i] = (double)(end.tv_sec - start.tv_sec) * 1e9 + \
-    (double)(end.tv_nsec - start.tv_nsec);
+        (double)(end.tv_nsec - start.tv_nsec);
 
 
 /* global variables needed for tests */
@@ -71,27 +80,6 @@ double   g_f64  = 2.7182818;    // FLD/FSD/C.FLD/C.FSD/C.FLDSP/C.FSDSP
  * __global_pointer$ keeps pointing to the original GP value
  */
 extern char __global_pointer$[];
-
-/*
- * compressed SP-relative instructions (C.FLDSP, C.LWSP, C.LDSP, C.FSDSP,
- * C.SWSP, C.SDSP) are hardcoded to use SP value to compute memory addresses,
- * then we need to set up an alternative stack to test them without risk of
- * corrupting the area pointed by SP when SIGSEGV will be issued, as we'll use
- * SP as a holder of relocated_GP+offset (pointing in the XOM shadow page).
- */
-void setup_alt_stack() {
-    static char alt_stack[SIGSTKSZ];
-    stack_t ss = { .ss_sp = alt_stack, .ss_size = SIGSTKSZ, .ss_flags = 0 };
-    if (sigaltstack(&ss, NULL) == -1) {
-        perror("sigaltstack fallita");
-        exit(1);
-    }
-
-    struct sigaction sa;
-    sigaction(SIGSEGV, NULL, &sa);
-    sa.sa_flags |= SA_ONSTACK;
-    sigaction(SIGSEGV, &sa, NULL);
-}
 
 /* =================================== */
 /*  32-bit integer instructions tests  */
@@ -447,31 +435,37 @@ void test_compressed_c2_sp_relative() {
 void print_global_stats() {
     if (test_idx == 0) return;
 
-    double sum_of_means = 0.0;
+    double sum_slow = 0.0, sum_fast_means = 0.0;
 
     for (int i = 0; i < test_idx; i++) {
-        sum_of_means += overall_stats[i].mean;
+        sum_slow += overall_stats[i].slow_path;
+        sum_fast_means += overall_stats[i].fast_mean;
     }
-    double global_mean = sum_of_means / test_idx;
+    double global_slow_mean = sum_slow / test_idx;
+    double global_fast_mean = sum_fast_means / test_idx;
 
-    double variance_of_means = 0.0;
+    double variance_fast_means = 0.0;
     for (int i = 0; i < test_idx; i++) {
-        variance_of_means += pow(overall_stats[i].mean - global_mean, 2);
+        variance_fast_means += pow(overall_stats[i].fast_mean - global_fast_mean, 2);
     }
-    variance_of_means /= (test_idx-1);
-    double global_std_dev = sqrt(variance_of_means);
+    variance_fast_means /= (test_idx > 1 ? test_idx - 1 : 1);
+    double global_fast_std_dev = sqrt(variance_fast_means);
 
-    printf("\n[INFO] Global Mean across instructions : %8.2f ns\n", global_mean);
-    printf("[INFO] Global StdDev across instructions : %8.2f ns\n", global_std_dev);
+    printf("\n[INFO] Global Mean for Slow-Path : %9.2f ns\n", global_slow_mean);
+    printf("[INFO] Global Mean for Fast-Path : %9.2f ns\n", global_fast_mean);
+    printf("[INFO] Global StdDev for Fast-Path : %9.2f ns\n", global_fast_std_dev);
 
-    /* 4. Stampa su CSV (se il file è aperto) */
     if (csv_file) {
-        fprintf(csv_file, "GLOBAL_AVERAGE,%.2f,%.2f\n", global_mean, global_std_dev);
+        fprintf(csv_file, "GLOBAL_AVERAGE,%.2f,%.2f,%.2f\n", global_slow_mean, global_fast_mean, global_fast_std_dev);
     }
 }
 
 int main(int argc, char *argv[]) {
     printf("=== TESTING GP-RELATIVE MEMORY ACCESSES ===\n");
+
+    /* warm-up call */
+    struct timespec dummy_time;
+    clock_gettime(CLOCK_MONOTONIC, &dummy_time);
 
     if (argc < 2) {
         fprintf(stderr, "[!] No output file specified\n");
@@ -481,24 +475,20 @@ int main(int argc, char *argv[]) {
     } else {
         csv_file = fopen(argv[1], "w");
         if (csv_file) {
-            fprintf(csv_file, "Instruction,Mean_ns,StdDev_ns\n");
+            fprintf(csv_file, "Instruction,SlowPath_ns,FastMean_ns,FastStdDev_ns\n");
         } else {
             perror("[!] Failed to create .csv file. Results will be printed only on screen\n");
         }
     }
 
-    setup_alt_stack();
-
     test_32bit_integer_instructions();
     test_32bit_float_instructions();
-    // test_compressed_c0_instructions();
-    // test_compressed_c2_sp_relative();
 
     print_global_stats();
 
     if (csv_file) {
         fclose(csv_file);
-        printf("\n[INFO] Time measurements saved in '%s'\n",argv[1]);
+        printf("\n[INFO] Time measurements saved in '%s'\n", argv[1]);
     }
 
     return 0;

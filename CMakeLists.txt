@@ -116,4 +116,16 @@ if (BUILD_TESTS)
         endif()
     endforeach()
 
+    set(GP_TEST_EXE "gp_test")
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/${GP_TEST_EXE}.c")
+        add_executable(${GP_TEST_EXE} test/${GP_TEST_EXE}.c)
+        target_link_libraries(${GP_TEST_EXE} PRIVATE m)
+
+        add_test(NAME gp_test COMMAND ${GP_TEST_EXE})
+
+        set_tests_properties(gp_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+    endif()
+
 endif ()
