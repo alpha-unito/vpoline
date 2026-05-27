@@ -51,8 +51,7 @@ int main() {
     }
 
     printf("[*] All runs finished. Computing stats...\n\n");
-    printf("%-10s,%-20s,%-20s,%-20s,%-20s\n", "Insn", "Slow Path (ns)", "sp_stddev", "Fast Path (ns)", "fp_stddev");
-    printf("------------------------------------------------------------------\n");
+    printf("%-10s,%-20s,%-20s,%-20s,%-20s\n", "Insn","Slow Path (ns)","sp_stddev","Fast Path (ns)","fp_stddev");
 
     for (int i = 0; i < NUM_INSTRUCTIONS; i++) {
         if (strlen(stats[i].name) == 0) continue;
@@ -75,7 +74,7 @@ int main() {
         double stddev_slow = sqrt(var_slow / (NUM_RUNS - 1));
         double stddev_fast = sqrt(var_fast / (NUM_RUNS - 1));
 
-        printf("%-10s,%8.2f,%6.2f,%8.2f,%6.2f\n",
+        printf("%s,%f,%f,%f,%f\n",
             stats[i].name,
             mean_slow, stddev_slow,
             mean_fast, stddev_fast);
