@@ -44,6 +44,7 @@ extern char __global_pointer$[];
 /* =================================== */
 /*  32-bit integer instructions tests  */
 /* =================================== */
+__attribute__((aligned(4096)))
 void test_32bit_integer_instructions() {
     // printf("\n=== Testing 32-bit integers instructions...\n");
 
@@ -230,6 +231,7 @@ void test_32bit_integer_instructions() {
 /* ==================================== */
 /*  32-bit floating instructions tests  */
 /* ==================================== */
+__attribute__((aligned(4096)))
 void test_32bit_float_instructions() {
     // printf("\n=== Testing 32-bit floating instructions...\n");
 
