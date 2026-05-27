@@ -20,9 +20,7 @@ double slow_path, fast_mean;
                         (double)(t_end.tv_nsec - t_after_slow.tv_nsec)) / (ITERATIONS - 1);
 
 #define PRINT_STATS(insn) \
-    printf("[ OK ] %-20s | Slow: %9.2f ns | Fast Mean: %8.2f ns\n", \
-    insn, slow_path, fast_mean); \
-    if (csv_file) fprintf(csv_file, "%s,%.2f,%.2f\n", insn, slow_path, fast_mean);
+    printf("%s,%f,%f\n", insn, slow_path, fast_mean);
 
 /* global variables needed for tests */
 int8_t   g_i8   = -42;          // LB/SB
@@ -47,7 +45,7 @@ extern char __global_pointer$[];
 /*  32-bit integer instructions tests  */
 /* =================================== */
 void test_32bit_integer_instructions() {
-    printf("\n=== Testing 32-bit integers instructions...\n");
+    // printf("\n=== Testing 32-bit integers instructions...\n");
 
     intptr_t off_i8  = (char*)&g_i8  - __global_pointer$;
     intptr_t off_i16 = (char*)&g_i16 - __global_pointer$;
@@ -233,7 +231,7 @@ void test_32bit_integer_instructions() {
 /*  32-bit floating instructions tests  */
 /* ==================================== */
 void test_32bit_float_instructions() {
-    printf("\n=== Testing 32-bit floating instructions...\n");
+    // printf("\n=== Testing 32-bit floating instructions...\n");
 
     intptr_t off_f32 = (char*)&g_f32 - __global_pointer$;
     intptr_t off_f64 = (char*)&g_f64 - __global_pointer$;
@@ -306,23 +304,23 @@ void test_32bit_float_instructions() {
 }
 
 int main(int argc, char *argv[]) {
-    printf("=== TESTING GP-RELATIVE MEMORY ACCESSES ===\n");
+    // printf("=== TESTING GP-RELATIVE MEMORY ACCESSES ===\n");
 
     /* warm-up call */
     struct timespec dummy_time;
     clock_gettime(CLOCK_MONOTONIC, &dummy_time);
 
     if (argc < 2) {
-        fprintf(stderr, "[!] No output file specified\n");
-        fprintf(stderr, "    Retry with: %s <nome_file_output.csv>\n", argv[0]);
-        fprintf(stderr, "    Benchmark results will be printed only on screen\n\n");
+        // fprintf(stderr, "[!] No output file specified\n");
+        // fprintf(stderr, "    Retry with: %s <nome_file_output.csv>\n", argv[0]);
+        // fprintf(stderr, "    Benchmark results will be printed only on screen\n\n");
         csv_file = NULL;
     } else {
         csv_file = fopen(argv[1], "w");
         if (csv_file) {
-            fprintf(csv_file, "Instruction,SlowPath_ns,FastMean_ns\n");
+            // fprintf(csv_file, "Instruction,SlowPath_ns,FastMean_ns\n");
         } else {
-            perror("[!] Failed to create .csv file. Results will be printed only on screen\n");
+            // perror("[!] Failed to create .csv file. Results will be printed only on screen\n");
         }
     }
 
@@ -331,7 +329,7 @@ int main(int argc, char *argv[]) {
 
     if (csv_file) {
         fclose(csv_file);
-        printf("\n[INFO] Time measurements saved in '%s'\n", argv[1]);
+        // printf("\n[INFO] Time measurements saved in '%s'\n", argv[1]);
     }
 
     return 0;
