@@ -1,5 +1,5 @@
 /**
- * Copyright 2026 University of Turin
+* Copyright 2026 University of Turin
  * Copyright 2021 Kenichi Yasukata
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,9 @@
 
 #include <libvpoline.h>
 
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/syscall.h>
 
 static syscall_no_intercept_t syscall_no_intercept = NULL;
@@ -31,22 +33,26 @@ static long hook_function(long syscall_number, long a0, long a1,
     (void) a4;
     (void) a5;
 
-    if (syscall_number == SYS_write) {
-        const char interc[] = "intercepted_";
-        const char *src = interc;
-
-        /* write(fd, buf, len) */
-        size_t len = (size_t)a2;
-        char *buf = (char *)a1;
-
-        if (len > sizeof(interc)) {
-            while (*src != '\0')
-                *buf++ = *src++;
-        }
-        *result = syscall_no_intercept(syscall_number, a0, a1, a2);
-        return 0;
+    if (syscall_number == SYS_clone) {
+        char buf[128];
+        sprintf(buf, "output from hook_function: syscall number %ld\n", syscall_number);
+        syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
     }
     return 1;
+}
+
+static void post_clone_child()
+{
+    char buf[128];
+    sprintf(buf, "output from post_clone_child\n");
+    syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
+}
+
+static void post_clone_parent(long a0)
+{
+    char buf[128];
+    sprintf(buf, "output from post_clone_parent\n");
+    syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
 }
 
 int __hook_init(long placeholder __attribute__((unused)),
@@ -59,5 +65,10 @@ int __hook_init(long placeholder __attribute__((unused)),
 
     syscall_no_intercept = (syscall_no_intercept_t)no_intercept_ptr;
     *out_hook_ptr= (void *)hook_function;
+    if (out_post_clone_child_ptr != NULL)
+        *out_post_clone_child_ptr = (void *)post_clone_child;
+
+    if (out_post_clone_parent_ptr != NULL)
+        *out_post_clone_parent_ptr = (void *)post_clone_parent;
     return 0;
 }

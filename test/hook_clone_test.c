@@ -15,9 +15,14 @@
  * limitations under the License.
  */
 
-#include <libvpoline.h>
+#include <fcntl.h>
 
+#include "../include/libvpoline.h"
+
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 
 static syscall_no_intercept_t syscall_no_intercept = NULL;
@@ -25,28 +30,23 @@ static syscall_no_intercept_t syscall_no_intercept = NULL;
 static long hook_function(long syscall_number, long a0, long a1,
                     long a2, long a3, long a4, long a5, long *result)
 {
-    (void) a0;
-    (void) a2;
-    (void) a3;
-    (void) a4;
-    (void) a5;
-
-    if (syscall_number == SYS_write) {
-        const char interc[] = "intercepted_";
-        const char *src = interc;
-
-        /* write(fd, buf, len) */
-        size_t len = (size_t)a2;
-        char *buf = (char *)a1;
-
-        if (len > sizeof(interc)) {
-            while (*src != '\0')
-                *buf++ = *src++;
-        }
-        *result = syscall_no_intercept(syscall_number, a0, a1, a2);
-        return 0;
+    if (syscall_number == SYS_clone) {
+        openat(AT_FDCWD, "testfile.txt", O_CREAT | O_TRUNC | O_RDWR, 0666);
+        openat(AT_FDCWD, "testfile2.txt", O_CREAT | O_TRUNC | O_RDWR, 0666);
     }
     return 1;
+}
+
+static void post_clone_child()
+{
+    int fd = openat(AT_FDCWD, "testfile.txt", O_WRONLY);
+    dprintf(fd, "%d\n", getpid());
+}
+
+static void post_clone_parent(long a0)
+{
+    int fd = openat(AT_FDCWD, "testfile2.txt", O_WRONLY);
+    dprintf(fd, "%d\n", getpid());
 }
 
 int __hook_init(long placeholder __attribute__((unused)),
@@ -55,9 +55,13 @@ int __hook_init(long placeholder __attribute__((unused)),
         void **out_post_clone_child_ptr,
         void **out_post_clone_parent_ptr)
 {
-    printf("output from __hook_init: we can do some init work here\n");
 
     syscall_no_intercept = (syscall_no_intercept_t)no_intercept_ptr;
     *out_hook_ptr= (void *)hook_function;
+    if (out_post_clone_child_ptr != NULL)
+        *out_post_clone_child_ptr = (void *)post_clone_child;
+
+    if (out_post_clone_parent_ptr != NULL)
+        *out_post_clone_parent_ptr = (void *)post_clone_parent;
     return 0;
 }
