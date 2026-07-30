@@ -91,6 +91,7 @@ if (BUILD_TESTS)
     set(TESTS
             fcntl
             write
+            clone
     )
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
