@@ -32,6 +32,7 @@
 #include <inttypes.h>
 #include <syscall.h>
 #include <sys/mman.h>
+#include <stdatomic.h>
 
 #include "patcher.h"
 
@@ -40,6 +41,8 @@ extern long syscall_no_intercept(long, ...);
 gp_instr_t *gp_instruction_map = NULL;
 size_t map_capacity = 0;
 size_t map_size = 0;
+
+static atomic_flag patch_lock = ATOMIC_FLAG_INIT;
 
 static inline uint8_t get_field(const uint32_t instr, const uint32_t start,
                          const uint32_t len)
@@ -320,6 +323,20 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
     /* retrieving PC value at the moment of segfault */
     const unsigned long pc = ctx->uc_mcontext.__gregs[REG_PC];
 
+    while (atomic_flag_test_and_set_explicit(&patch_lock, memory_order_acquire)) {
+        /* spin until lock is released */
+    }
+
+    if (*(uint32_t *)pc == 0x050181e7) {
+        atomic_flag_clear_explicit(&patch_lock, memory_order_release);
+        /*
+         * by not incrementing PC we ensure that the thread resumes execution
+         * at the patched instruction, jumping directly to the user space
+         * handling
+         */
+        return;
+    }
+
     /*
      * we assume it's a compressed instruction to avoid the remote possibility
      * to cause a segfault if such C instruction it's the last of a page
@@ -461,6 +478,8 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
      * which caused the segfault
      */
     ctx->uc_mcontext.__gregs[REG_PC] += pc_step;
+
+    atomic_flag_clear_explicit(&patch_lock, memory_order_release);
 }
 
 /**
