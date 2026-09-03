@@ -122,7 +122,8 @@ if (BUILD_TESTS)
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/${GP_TEST_EXE}.c")
         add_executable(${GP_TEST_EXE} test/${GP_TEST_EXE}.c)
         set_target_properties(${GP_TEST_EXE} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
-        target_compile_options(${GP_TEST_EXE} PRIVATE "-msmall-data-limit=8")
+        target_compile_options(${GP_TEST_EXE} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+        target_link_options(${GP_TEST_EXE} PRIVATE "-no-pie")
 
         add_test(NAME gp_test COMMAND ${GP_TEST_EXE})
 
