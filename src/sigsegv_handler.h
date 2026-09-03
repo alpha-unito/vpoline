@@ -18,6 +18,7 @@
 #define RISCVPOLINE_SIGSEGV_HANDLER_H
 
 #include <bits/types/siginfo_t.h>
+#include <signal.h>
 
 #include "main.h"
 

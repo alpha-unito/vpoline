@@ -21,7 +21,6 @@
 #include "sigsegv_handler.h"
 #include "rv_opcodes.h"
 
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,6 +34,11 @@
 #include <stdatomic.h>
 
 #include "patcher.h"
+
+#define KERNEL_SIGSETSIZE 8
+
+struct sigaction user_sigsegv_act;
+bool user_sigsegv_registered = false;
 
 extern long syscall_no_intercept(long, ...);
 
@@ -285,11 +289,16 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
     const uintptr_t fault_addr = (uintptr_t)si->si_addr;
 
 #ifdef DEBUG
-    char buf[80];
+    char buf[160];
     snprintf(buf, sizeof(buf),
         "Segmentation fault at address: 0x%" PRIXPTR "\n", (uintptr_t)fault_addr);
     syscall_no_intercept(SYS_write, 2, buf, strlen(buf));
 #endif
+
+    ucontext_t *ctx = (ucontext_t *)context;
+
+    /* retrieving PC value at the moment of segfault */
+    const unsigned long pc = ctx->uc_mcontext.__gregs[REG_PC];
 
 
     /*
@@ -299,29 +308,49 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
     const uintptr_t xom_start = (uintptr_t)rsi.ret_sequence_page_addr;
     const uintptr_t xom_end = xom_start + rsi.protection_size - 1;
 
-    /* if segfault is issued anywhere else, let it be */
-    if (fault_addr < xom_start || fault_addr > xom_end) {
+    /*
+     * if segfault is issued anywhere else OR
+     * faulting instruction's rs1 is different from gp (x3), then we forward
+     * SIGSEGV to the user registered handler (if any) or to the default kernel
+     * handler
+     */
+    // TODO: this works fine, but we need to reconsider how we treat compressed
+    //  instructions for coherence reasons
+    if ((fault_addr < xom_start || fault_addr > xom_end) ||
+        ((*(uint16_t *)pc & 0x3) != 0x3) ||
+        (((*(uint32_t *)pc >> 15) & 0x1F) != 0x3)) {
 #ifdef DEBUG
         snprintf(buf, sizeof(buf),
-            "Segfault at addr 0x%" PRIXPTR " outside XOM region\n", fault_addr);
+            "Segfault at addr 0x%" PRIXPTR " outside XOM region or not caused by GP\n"
+            "Forwarding SIGSEGV handling to old handler or default handler\n", fault_addr);
         syscall_no_intercept(SYS_write, 2, buf, strlen(buf));
-        __builtin_trap();
-        // abort();
-#else
-        signal(sig, SIG_DFL); // TODO: replace with sigaction
-        raise(sig);
 #endif
+        if (user_sigsegv_registered &&
+            user_sigsegv_act.sa_handler != SIG_DFL &&
+            user_sigsegv_act.sa_handler != SIG_IGN ) {
+            if (user_sigsegv_act.sa_flags & SA_SIGINFO) {
+                user_sigsegv_act.sa_sigaction(sig, si, context);
+            } else {
+                user_sigsegv_act.sa_handler(sig);
+            }
+            } else {
+                struct sigaction dfl_act = {0};
+                dfl_act.sa_handler = SIG_DFL;
+                /*
+                 * we're bypassing glibc implementation of sigaction, then we need
+                 * to manually hardcode the last parameter of rt_sigaction
+                 *
+                 * check disassembly of __libc_sigaction as example (last
+                 * instruction before ecall is c.li a3, 8)
+                 */
+                syscall_no_intercept(SYS_rt_sigaction,SIGSEGV,&dfl_act,NULL,KERNEL_SIGSETSIZE);
+            }
         return;
     }
 
     /* computing correspondant address in the backup area */
     const uintptr_t offset = fault_addr - xom_start;
     const uintptr_t backup_addr = (uintptr_t)rsi.start_addr_page + offset;
-
-    ucontext_t *ctx = (ucontext_t *)context;
-
-    /* retrieving PC value at the moment of segfault */
-    const unsigned long pc = ctx->uc_mcontext.__gregs[REG_PC];
 
     while (atomic_flag_test_and_set_explicit(&patch_lock, memory_order_acquire)) {
         /* spin until lock is released */

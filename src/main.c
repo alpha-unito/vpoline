@@ -59,6 +59,9 @@ extern long enter_syscall(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, 
 uintptr_t glibc_ra;
 uintptr_t virtual_global_pointer;
 uintptr_t relocated_global_pointer;
+extern struct sigaction user_sigsegv_act;
+extern bool user_sigsegv_registered;
+
 
 size_t page_size;
 
@@ -323,6 +326,36 @@ struct wrapper_ret syscall_hook(int64_t a0, int64_t a1,
 		  int64_t a6_ra, // a6 contains return address to jump after patched ecall
 		  int64_t a7)
 {
+
+    /*
+     * If the targeted executable is trying to register a custom SIGSEGV
+     * handler which would replace the VPOLINE handler, then we store the
+     * pointer to the user-defined handler aside and we trick the executable
+     * into thinking that the registration was successful. In this way, we can
+     * keep the gp-caused fault handling active and we can still forward the
+     * signal to the user-defined handler whenever gp is not the cause.
+     */
+    if (a7 == SYS_rt_sigaction && a0 == SIGSEGV) {
+        const struct sigaction *act = (const struct sigaction *)a1;
+        struct sigaction *oldact = (struct sigaction *)a2;
+
+        if (oldact != NULL) {
+            if (user_sigsegv_registered) {
+                *oldact = user_sigsegv_act;
+            } else {
+                memset(oldact, 0, sizeof(*oldact));
+                oldact->sa_handler = SIG_DFL;
+            }
+        }
+
+        if (act != NULL) {
+            user_sigsegv_act = *act;
+            user_sigsegv_registered = true;
+        }
+
+        return (struct wrapper_ret) { .a[0] = 0, .a[1] = 1 };
+    }
+
     long result;
     if (hook_fn == NULL) {
         return (struct wrapper_ret) {
