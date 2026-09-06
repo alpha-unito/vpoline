@@ -46,6 +46,7 @@
 #include <capstone/capstone.h>
 #include <linux/limits.h>
 #include <linux/sched.h>
+#include <stdatomic.h>
 
 #include "main.h"
 #include "utils.h"
@@ -53,7 +54,7 @@
 #include "sigsegv_handler.h"
 
 extern void setup_ecall(void);
-extern long syscall_no_intercept(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+extern long syscall_no_intercept(long syscall_number, ...);
 extern long enter_syscall(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 
 uintptr_t glibc_ra;
@@ -62,10 +63,12 @@ uintptr_t relocated_global_pointer;
 extern struct sigaction user_sigsegv_act;
 extern bool user_sigsegv_registered;
 
-
 size_t page_size;
 
 ReturnSequenceInfo rsi;
+
+pid_t active_tids[MAX_THREADS];
+atomic_flag tid_list_lock = ATOMIC_FLAG_INIT;
 
 void ____asm_impl(void)
 {
@@ -314,6 +317,14 @@ struct wrapper_ret post_clone_hook(int64_t a0)
         if (post_clone_hook_fn_child != NULL)
             post_clone_hook_fn_child();
     } else {
+    	while (atomic_flag_test_and_set_explicit(&tid_list_lock, memory_order_acquire));
+    	for (int i = 0; i < MAX_THREADS; i++) {
+    		if (active_tids[i] == 0) {
+    			active_tids[i] = (pid_t)a0;
+    			break;
+    		}
+    	}
+    	atomic_flag_clear_explicit(&tid_list_lock, memory_order_release);
         if (post_clone_hook_fn_parent != NULL)
             post_clone_hook_fn_parent(a0);
     }
@@ -752,6 +763,15 @@ __attribute__((constructor(0xffff))) static void __vpoline_init(void)
 #endif
 
     define_ret_sequence_info();
+
+	check_ziccif_support();
+
+	/*
+	 * we register the current thread ID as the first one of the possible
+	 * concurrent threads which will execute in the same memory space
+	 */
+	memset(active_tids, 0, sizeof(active_tids));
+	active_tids[0] = (pid_t)syscall_no_intercept(SYS_gettid);
 
     init_trap_handler();
 

@@ -22,6 +22,8 @@
 
 #define RET_SEQUENCE_SIZE (56) // 14 4-bytes long instructions
 
+#define MAX_THREADS 1024
+
 typedef int (*libc_start_main_t)(int (*main)(int, char **, char **),
                                  int argc, char **argv,
                                  void (*init)(void), void (*fini)(void),

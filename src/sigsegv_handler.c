@@ -34,6 +34,7 @@
 #include <stdatomic.h>
 
 #include "patcher.h"
+#include "utils.h"
 
 #define KERNEL_SIGSETSIZE 8
 
@@ -41,6 +42,12 @@ struct sigaction user_sigsegv_act;
 bool user_sigsegv_registered = false;
 
 extern long syscall_no_intercept(long, ...);
+
+extern pid_t active_tids[MAX_THREADS];
+extern atomic_flag tid_list_lock;
+
+static atomic_bool patch_in_progress = ATOMIC_VAR_INIT(false);
+static atomic_int threads_parked = ATOMIC_VAR_INIT(0);
 
 gp_instr_t *gp_instruction_map = NULL;
 size_t map_capacity = 0;
@@ -366,6 +373,36 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
         return;
     }
 
+    bool is_unaligned = (pc & 0x3) != 0;
+    bool require_stw = is_unaligned || !ziccif_supported;
+
+    pid_t my_tid = (pid_t)syscall_no_intercept(SYS_gettid);
+    pid_t my_tgid = (pid_t)syscall_no_intercept(SYS_getpid);
+    int signaled_threads = 0;
+
+    if (require_stw) {
+        atomic_store_explicit(&patch_in_progress, true, memory_order_release);
+
+        while (atomic_flag_test_and_set_explicit(&tid_list_lock, memory_order_acquire));
+        for (int i = 0; i < MAX_THREADS; i++) {
+            pid_t target_tid = active_tids[i];
+            if (target_tid != 0 && target_tid != my_tid) {
+                long ret = syscall_no_intercept(SYS_tgkill, my_tgid, target_tid, SIGUSR1);
+                if (ret == -3) { // -ESRCH (thread is terminated)
+                    active_tids[i] = 0;
+                } else if (ret == 0) {
+                    signaled_threads++;
+                }
+            }
+        }
+        atomic_flag_clear_explicit(&tid_list_lock, memory_order_release);
+
+        /* wait until all signaled threads enter in stw_signal_handler */
+        while (atomic_load_explicit(&threads_parked, memory_order_acquire) < signaled_threads) {
+            __asm__ volatile (".word 0x0100000F" ::: "memory");
+        }
+    }
+
     /*
      * we assume it's a compressed instruction to avoid the remote possibility
      * to cause a segfault if such C instruction it's the last of a page
@@ -508,7 +545,30 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
      */
     ctx->uc_mcontext.__gregs[REG_PC] += pc_step;
 
+    if (require_stw) {
+        atomic_store_explicit(&patch_in_progress, false, memory_order_release);
+        while (atomic_load_explicit(&threads_parked, memory_order_acquire) > 0) {
+            __asm__ volatile (".word 0x0100000F" ::: "memory");
+        }
+    }
+
     atomic_flag_clear_explicit(&patch_lock, memory_order_release);
+}
+
+void stw_signal_handler(int sig, siginfo_t *si, void *context) {
+#ifdef DEBUG
+    const char msg_enter[] = "[STW-DEBUG] Signal SIGUSR1 received: pausing thread...\n";
+    syscall_no_intercept(SYS_write, 2, msg_enter, sizeof(msg_enter) - 1);
+#endif
+    atomic_fetch_add_explicit(&threads_parked, 1, memory_order_acq_rel);
+    while (atomic_load_explicit(&patch_in_progress, memory_order_acquire)) {
+        __asm__ volatile (".word 0x0100000F" ::: "memory");
+    }
+    atomic_fetch_sub_explicit(&threads_parked, 1, memory_order_acq_rel);
+#ifdef DEBUG
+    const char msg_exit[] = "[STW-DEBUG] Patching completed: thread restarting\n";
+    syscall_no_intercept(SYS_write, 2, msg_exit, sizeof(msg_exit) - 1);
+#endif
 }
 
 /**
@@ -533,4 +593,10 @@ void init_trap_handler(void) {
         perror("Failed to register SIGSEGV handler");
         exit(1);
     }
+
+    struct sigaction sa_stw;
+    memset(&sa_stw, 0, sizeof(sa_stw));
+    sa_stw.sa_flags = SA_SIGINFO | SA_RESTART;
+    sa_stw.sa_sigaction = stw_signal_handler;
+    sigaction(SIGUSR1, &sa_stw, NULL);
 }
