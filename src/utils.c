@@ -27,6 +27,11 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <sys/mman.h>
+#include <syscall.h>
+
+extern long syscall_no_intercept(long, ...);
+
+bool ziccif_supported = false;
 
 /**
  * Defines all fields of the global structure holding useful information about
@@ -94,4 +99,37 @@ void allocate_ret_sequence_page()
     rsi.start_addr = (void *)rsi.relocated_gp - RET_SEQUENCE_SIZE;
     rsi.end_addr = (void *)rsi.relocated_gp - 1;
     rsi.start_offset = (uintptr_t)rsi.start_addr % page_size;
+}
+
+/**
+ * Sets ziccif_supported to true is the CPU supports such ISA extension. This
+ * is needed to know if the CPU guarantees atomic fetching of naturally aligned
+ * instructions.
+ */
+void check_ziccif_support(void)
+{
+    struct riscv_hwprobe probe = { .key = RISCV_HWPROBE_KEY_IMA_EXT_1, .value = 0 };
+
+    long ret = syscall_no_intercept(SYS_riscv_hwprobe, &probe, 1, 0, NULL, 0);
+
+    if (ret == 0) {
+        if (probe.value & RISCV_HWPROBE_IMA_ZICCIF) {
+            ziccif_supported = true;
+#ifdef DEBUG
+            const char msg[] = "[vpoline] HWPROBE: Ziccif extension SUPPORTED by hardware.\n";
+            syscall_no_intercept(SYS_write, 2, msg, sizeof(msg) - 1);
+#endif
+        } else {
+#ifdef DEBUG
+            const char msg[] = "[vpoline] HWPROBE: Ziccif extension NOT supported.\n";
+            syscall_no_intercept(SYS_write, 2, msg, sizeof(msg) - 1);
+#endif
+        }
+    } else {
+#ifdef DEBUG
+        char buf[120];
+        int len = sprintf(buf, "[vpoline] HWPROBE: riscv_hwprobe syscall failed or missing (ret = %ld)\n", ret);
+        syscall_no_intercept(SYS_write, 2, buf, len);
+#endif
+    }
 }

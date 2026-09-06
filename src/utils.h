@@ -16,9 +16,15 @@
 
 #ifndef RISCVPOLINE_UTILS_H
 #define RISCVPOLINE_UTILS_H
+
 #include "main.h"
+
 #include <stddef.h>
 #include <stdint.h>
+#include <stdatomic.h>
+#include <signal.h>
+#include <stdbool.h>
+
 
 extern uintptr_t virtual_global_pointer;
 extern uintptr_t relocated_global_pointer;
@@ -39,5 +45,25 @@ void define_ret_sequence_info(void);
  */
 void allocate_ret_sequence_page(void);
 
+#ifndef SYS_riscv_hwprobe
+#define SYS_riscv_hwprobe 258
+#endif
+
+#define RISCV_HWPROBE_KEY_IMA_EXT_0 4
+#define RISCV_HWPROBE_KEY_IMA_EXT_1 16
+#define RISCV_HWPROBE_IMA_ZICCIF (1ULL << 3)
+
+struct riscv_hwprobe {
+    int64_t key;
+    uint64_t value;
+};
+
+extern bool ziccif_supported;
+/**
+ * Sets ziccif_supported to true is the CPU supports such ISA extension. This
+ * is needed to know if the CPU guarantees atomic fetching of naturally aligned
+ * instructions.
+ */
+void check_ziccif_support(void);
 
 #endif // RISCVPOLINE_UTILS_H
