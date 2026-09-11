@@ -131,4 +131,15 @@ if (BUILD_TESTS)
                 "LD_PRELOAD=$<TARGET_FILE:vpoline>")
     endif()
 
+    set(STW_TEST_EXE "stw_test")
+        add_executable(${STW_TEST_EXE} test/${STW_TEST_EXE}.c)
+        set_target_properties(${STW_TEST_EXE} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+        target_compile_options(${STW_TEST_EXE} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+        target_link_options(${STW_TEST_EXE} PRIVATE "-no-pie")
+
+        add_test(NAME stw_test COMMAND ${STW_TEST_EXE})
+
+        set_tests_properties(stw_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+
 endif ()
