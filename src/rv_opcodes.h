@@ -76,6 +76,20 @@
 #define C_SDSP_FUNCT3   0x7
 
 
+#define AMO_OPCODE  0x2f
+
+#define AMOADD_FUNCT5   0x00
+#define AMOSWAP_FUNCT5  0x01
+#define AMOLR_FUNCT5    0x02
+#define AMOSCR_FUNCT5   0x03
+#define AMOXOR_FUNCT5   0x04
+#define AMOOR_FUNCT5    0x0a
+#define AMOAND_FUNCT5   0x0c
+#define AMOMIN_FUNCT5   0x10
+#define AMOMAX_FUNCT5   0x14
+#define AMOMINU_FUNCT5  0x18
+#define AMOMAXU_FUNCT5  0x1c
+
 /*
  * Non SP-relative compressed instructions (0x00 opcode) encode registers in 3
  * bits, shifting the referrable set to the "popular" x8-x15 instead of x0-x7.

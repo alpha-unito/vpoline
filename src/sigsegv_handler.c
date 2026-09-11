@@ -323,9 +323,9 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
      */
     // TODO: this works fine, but we need to reconsider how we treat compressed
     //  instructions for coherence reasons
-    if ((fault_addr < xom_start || fault_addr > xom_end) ||
-        ((*(uint16_t *)pc & 0x3) != 0x3) ||
-        (((*(uint32_t *)pc >> 15) & 0x1F) != 0x3)) {
+    if ((fault_addr < xom_start || fault_addr > xom_end)  /*||
+        ((*(uint16_t *)pc & 0x3) != 0x3)||
+        (((*(uint32_t *)pc >> 15) & 0x1F) != 0x3)*/) {
 #ifdef DEBUG
         snprintf(buf, sizeof(buf),
             "Segfault at addr 0x%" PRIXPTR " outside XOM region or not caused by GP\n"
@@ -440,6 +440,7 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
                 rs2 = get_field(instr, 20, 5);
                 emulate_fstore_instruction(ctx, funct3, rs2, backup_addr);
                 break;
+            // case AMO_OPCODE:
             default:
                 fprintf(stderr,
                     "Error: Unimplemented 32-bit instruction causing fault at XOM region. Opcode: %x\n",opcode);
