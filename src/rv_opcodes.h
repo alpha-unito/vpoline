@@ -78,12 +78,15 @@
 
 #define AMO_OPCODE  0x2f
 
+#define AMO_W_FUNCT3   0x2
+#define AMO_D_FUNCT3   0x3
+
 #define AMOADD_FUNCT5   0x00
 #define AMOSWAP_FUNCT5  0x01
 #define AMOLR_FUNCT5    0x02
-#define AMOSCR_FUNCT5   0x03
+#define AMOSC_FUNCT5    0x03
 #define AMOXOR_FUNCT5   0x04
-#define AMOOR_FUNCT5    0x0a
+#define AMOOR_FUNCT5    0x08
 #define AMOAND_FUNCT5   0x0c
 #define AMOMIN_FUNCT5   0x10
 #define AMOMAX_FUNCT5   0x14

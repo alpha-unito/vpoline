@@ -286,6 +286,34 @@ void register_instruction(uintptr_t addr, uint32_t encoding) {
     map_size++;
 }
 
+void emulate_amo_instruction(ucontext_t *ctx, const uint32_t instr,
+    const uintptr_t backup_addr)
+{
+    uint8_t funct5 = get_field(instr, 27, 5);
+    uint8_t funct3 = get_field(instr, 12, 3);
+    uint8_t rd = get_field(instr, 7, 5);
+    uint8_t rs2 = get_field(instr, 20, 5);
+
+    uint64_t val = ctx->uc_mcontext.__gregs[rs2];
+    uint64_t res = 0;
+
+    switch (funct3) {
+        case AMO_W_FUNCT3:
+            if (rd != 0) ctx->uc_mcontext.__gregs[rd] = (int64_t)(int32_t)res;
+            break;
+        case AMO_D_FUNCT3:
+            if (res != 0) ctx->uc_mcontext.__gregs[rd] = res;
+            break;
+        default:
+            fprintf(stderr,
+            "Error: Unrecognized funct3 field for AMO instruction\n");
+#ifdef DEBUG
+            __builtin_trap();
+#endif
+            exit(1);
+    }
+}
+
 void segfault_handler(int sig, siginfo_t *si, void *context)
 {
 
@@ -441,6 +469,7 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
                 emulate_fstore_instruction(ctx, funct3, rs2, backup_addr);
                 break;
             // case AMO_OPCODE:
+            //     emulate_amo_instruction(ctx, instr, backup_addr);
             default:
                 fprintf(stderr,
                     "Error: Unimplemented 32-bit instruction causing fault at XOM region. Opcode: %x\n",opcode);
