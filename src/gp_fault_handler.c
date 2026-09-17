@@ -28,6 +28,7 @@ extern gp_instr_t *gp_instruction_map;
 extern size_t map_capacity;
 extern size_t map_size;
 
+// TODO: add emulation for AMO instructions
 
 static inline uint64_t get_reg(const struct context *ctx, uint8_t reg) {
     switch(reg) {
