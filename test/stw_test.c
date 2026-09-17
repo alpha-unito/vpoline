@@ -14,7 +14,7 @@ int64_t global_var_2 = 100;
 int64_t global_var_3 = 100;
 int64_t global_var_4 = 100;
 
-pthread_barrier_t start_barrier;
+pthread_barrier_t *start_barrier;
 
 // int64_t global_var_64 = 100;
 
@@ -26,7 +26,7 @@ void* thread_func(void* arg)
     int id = *(int*)arg;
 
 
-    pthread_barrier_wait(&start_barrier);
+    pthread_barrier_wait(start_barrier);
     /*
      * I thread rimangono intrappolati qui in user-space finché non è il loro turno.
      * Questo massimizza la probabilità che ricevano il SIGUSR1 mentre sono attivi.
@@ -136,7 +136,13 @@ int main() {
     pthread_t threads[NUM_THREADS];
     int thread_ids[NUM_THREADS];
 
-    pthread_barrier_init(&start_barrier, NULL, NUM_THREADS);
+    start_barrier = malloc(sizeof(pthread_barrier_t));
+    if (start_barrier == NULL) {
+        perror("malloc failed");
+        return EXIT_FAILURE;
+    }
+
+    pthread_barrier_init(start_barrier, NULL, NUM_THREADS);
     printf("Starting multithreading Stop-The-World handling with %d threads...\n", NUM_THREADS);
 
     /* thread creation */
@@ -154,7 +160,8 @@ int main() {
         pthread_join(threads[i], &status);
     }
 
-    pthread_barrier_destroy(&start_barrier);
+    pthread_barrier_destroy(start_barrier);
+    free(start_barrier);
     printf("\nTest completed\n");
     return 0;
 }

@@ -17,8 +17,6 @@
 #ifndef RISCVPOLINE_RV_OPCODES_H
 #define RISCVPOLINE_RV_OPCODES_H
 
-// TODO: add A extension instructions opcodes and funct3 fields
-
 /*
  * Here opcode e funct3 fields for each existing RISC-V instruction accessing
  * memory both for reading and writing are listed accordingly to the RISC-V

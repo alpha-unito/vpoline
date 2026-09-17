@@ -61,8 +61,6 @@ static inline uint8_t get_field(const uint32_t instr, const uint32_t start,
     return (instr >> start) & ((1 << len) - 1);
 }
 
-/* TODO: RV64A Atomic Instructions */
-
 void emulate_load_instruction(ucontext_t *ctx, const uint8_t funct3,
                                 const uint8_t rd, const uintptr_t backup_addr)
 {
@@ -297,20 +295,103 @@ void emulate_amo_instruction(ucontext_t *ctx, const uint32_t instr,
     uint64_t val = ctx->uc_mcontext.__gregs[rs2];
     uint64_t res = 0;
 
-    switch (funct3) {
-        case AMO_W_FUNCT3:
-            if (rd != 0) ctx->uc_mcontext.__gregs[rd] = (int64_t)(int32_t)res;
-            break;
-        case AMO_D_FUNCT3:
-            if (res != 0) ctx->uc_mcontext.__gregs[rd] = res;
-            break;
-        default:
-            fprintf(stderr,
+    if (funct3 == AMO_W_FUNCT3) {
+        _Atomic uint32_t *ptr = (_Atomic uint32_t *)backup_addr;
+        uint32_t val32 = (uint32_t)val;
+        uint32_t expected, desired;
+
+        switch (funct5) {
+            case AMOADD_FUNCT5: res = __atomic_fetch_add(ptr, val32, __ATOMIC_SEQ_CST); break;
+            case AMOSWAP_FUNCT5: res = __atomic_exchange_n(ptr, val32, __ATOMIC_SEQ_CST); break; // need to verify
+            case AMOLR_FUNCT5: res = __atomic_load_n(ptr, __ATOMIC_SEQ_CST); break; // verify how reservations are handled
+            case AMOSC_FUNCT5: __atomic_store_n(ptr, val32, __ATOMIC_SEQ_CST); res = 0; break; // verify how reservations are handled
+            case AMOXOR_FUNCT5: res = __atomic_fetch_xor(ptr, val32, __ATOMIC_SEQ_CST); break;
+            case AMOOR_FUNCT5: res = __atomic_fetch_or(ptr, val32, __ATOMIC_SEQ_CST); break;
+            case AMOAND_FUNCT5: res = __atomic_fetch_and(ptr, val32, __ATOMIC_SEQ_CST); break;
+            case AMOMIN_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = ((int32_t)expected < (int32_t)val32) ? expected : val32; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMAX_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = ((int32_t)expected > (int32_t)val32) ? expected : val32; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMINU_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = (expected < val32) ? expected : val32; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMAXU_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = (expected > val32) ? expected : val32; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            default:
+                fprintf(stderr,"Error: Unsupported 32-bit AMO instruction (funct5: %x)\n", funct5);
+#ifdef DEBUG
+                __builtin_trap();
+#endif
+                exit(1);
+        }
+        /* typecasting as (int64_t)(int32_t) to sign-extend res */
+        if (rd != 0) ctx->uc_mcontext.__gregs[rd] = (int64_t)(int32_t)res;
+    } else if (funct3 == AMO_D_FUNCT3) {
+        _Atomic uint64_t *ptr = (_Atomic uint64_t *)backup_addr;
+        uint64_t expected, desired;
+
+        switch (funct5) {
+            case AMOADD_FUNCT5: res = __atomic_fetch_add(ptr, val, __ATOMIC_SEQ_CST); break;
+            case AMOSWAP_FUNCT5: res = __atomic_exchange_n(ptr, val, __ATOMIC_SEQ_CST); break; // need to verify
+            case AMOLR_FUNCT5: res = __atomic_load_n(ptr, __ATOMIC_SEQ_CST); break; // verify how reservations are handled
+            case AMOSC_FUNCT5: __atomic_store_n(ptr, val, __ATOMIC_SEQ_CST); res = 0; break; // verify how reservations are handled
+            case AMOXOR_FUNCT5: res = __atomic_fetch_xor(ptr, val, __ATOMIC_SEQ_CST); break;
+            case AMOOR_FUNCT5: res = __atomic_fetch_or(ptr, val, __ATOMIC_SEQ_CST); break;
+            case AMOAND_FUNCT5: res = __atomic_fetch_and(ptr, val, __ATOMIC_SEQ_CST); break;
+            case AMOMIN_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = ((int64_t)expected < (int64_t)val) ? expected : val; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMAX_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = ((int64_t)expected > (int64_t)val) ? expected : val; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMINU_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = (expected < val) ? expected : val; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            case AMOMAXU_FUNCT5:
+                expected = __atomic_load_n(ptr, __ATOMIC_SEQ_CST);
+                do { desired = (expected > val) ? expected : val; }
+                while (!__atomic_compare_exchange_n(ptr, &expected, desired, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST));
+                res = expected;
+                break;
+            default:
+                fprintf(stderr,"Error: Unsupported 64-bit AMO instruction (funct5: %x)\n", funct5);
+#ifdef DEBUG
+                __builtin_trap();
+#endif
+                exit(1);
+        }
+        if (rd != 0) ctx->uc_mcontext.__gregs[rd] = res;
+    } else {
+        fprintf(stderr,
             "Error: Unrecognized funct3 field for AMO instruction\n");
 #ifdef DEBUG
-            __builtin_trap();
+        __builtin_trap();
 #endif
-            exit(1);
+        exit(1);
     }
 }
 
@@ -468,8 +549,9 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
                 rs2 = get_field(instr, 20, 5);
                 emulate_fstore_instruction(ctx, funct3, rs2, backup_addr);
                 break;
-            // case AMO_OPCODE:
-            //     emulate_amo_instruction(ctx, instr, backup_addr);
+            case AMO_OPCODE:
+                emulate_amo_instruction(ctx, instr, backup_addr);
+                break;
             default:
                 fprintf(stderr,
                     "Error: Unimplemented 32-bit instruction causing fault at XOM region. Opcode: %x\n",opcode);
@@ -526,7 +608,9 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
 
     const int pc_step = is_32bit ? 4 : 2;
 
-    if (is_32bit) {
+    //  TODO: At the moment, we don't do JIT patching of AMO instructions. The second
+    //   operand of the AND will be removed from the following if statement.
+    if (is_32bit && (opcode != AMO_OPCODE)) {
 
         const uintptr_t page_start = pc & ~(page_size -1);
         const size_t prot_len = ((pc + 4 - page_start) <= page_size) ? page_size : page_size*2;
