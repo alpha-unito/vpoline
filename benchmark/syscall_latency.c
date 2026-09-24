@@ -85,6 +85,13 @@ int main(int argc, char *argv[]) {
 
     thread_id = syscall(SYS_gettid);
 
+    /* this stops the benchmark at the beginning if a second argument is provided */
+    if (argc > 2) {
+        printf("PID: %ld\n", (long)getpid());
+        printf("Load the kprobes module with this PID, then press Enter to start the benchmark.\n");
+        getchar();
+    }
+
     fprintf(out_file,"[\n");
 
     run_benchmark("read", ITERATIONS, SYS_read, 0, 0, 0, 0, 0, 0);
