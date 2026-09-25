@@ -1,0 +1,21 @@
+cmake_minimum_required(VERSION 3.15)
+project(syscall_intercept_local)
+
+include(GNUInstallDirs)
+
+# Path assoluto alla tua build locale di syscall_intercept (porting BSC)
+set(LOCAL_SYSCALL_DIR "$ENV{HOME}/syscall_intercept")
+
+# Path attesi dal CMakeLists.txt padre di CAPIO
+set(EXPECTED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_INCLUDEDIR}")
+set(EXPECTED_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
+
+# Creazione delle cartelle di destinazione
+file(MAKE_DIRECTORY "${EXPECTED_INCLUDE_DIR}")
+file(MAKE_DIRECTORY "${EXPECTED_LIB_DIR}")
+
+# Copia gli header (incluso libsyscall_intercept_hook_point.h) in modo che il GLOB di CAPIO li trovi
+file(COPY "${LOCAL_SYSCALL_DIR}/include/" DESTINATION "${EXPECTED_INCLUDE_DIR}")
+
+# Copia la libreria condivisa pre-compilata
+file(COPY "${LOCAL_SYSCALL_DIR}/build/libsyscall_intercept.so" DESTINATION "${EXPECTED_LIB_DIR}")
