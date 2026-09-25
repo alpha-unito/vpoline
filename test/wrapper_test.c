@@ -156,6 +156,8 @@ int main() {
 
     size_t len0 = strlen(input[0]);
 
+    syscall(9999, tracker, &inside_test, &current_test_idx);
+
     TEST_LIBC_WRAPPER(SYS_setxattr,setxattr(input[0], input[1], input[1], 3, XATTR_CREATE));
     TEST_LIBC_WRAPPER(SYS_lsetxattr,lsetxattr(input[0], input[1], input[1], 3, XATTR_CREATE));
     TEST_LIBC_WRAPPER(SYS_fsetxattr,fsetxattr(4, input[1], input[1], 3, XATTR_REPLACE));
