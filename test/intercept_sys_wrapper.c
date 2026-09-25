@@ -31,7 +31,7 @@
  */
 
 #include "libsyscall_intercept_hook_point.h"
-#include "wrapper_test.h"
+// #include "wrapper_test.h"
 
 #include <stddef.h>
 #include <syscall.h>
@@ -39,6 +39,18 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdint.h>
+
+#define MAX_TESTS 500
+
+struct syscall_test_data {
+    int expected_sys_nr;
+    int matched;
+    const char* name;
+};
+
+static struct syscall_test_data *tracker_ptr = NULL;
+static int *inside_test_ptr = NULL;
+static int *current_test_idx_ptr = NULL;
 
 static int
 hook(long syscall_number,
@@ -54,20 +66,36 @@ hook(long syscall_number,
 	(void) arg5;
 	(void) result;
 
+    if (syscall_number == 9999) {
+        tracker_ptr = (struct syscall_test_data *)arg0;
+        inside_test_ptr = (int *)arg1;
+        current_test_idx_ptr = (int *)arg2;
+        *result = 0;
+        return 0; /* Ferma la propagazione al kernel */
+    }
+
 	if (syscall_number == SYS_write && arg0 == 1) return 1;
 	if (syscall_number == SYS_exit_group || syscall_number == SYS_exit) return 1;
 
-	if (inside_test) {
+	if (inside_test_ptr && *inside_test_ptr) {
         	char buf[128];
         	sprintf(buf, "output from hook_function: syscall number %ld\n", syscall_number);
         	syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
-        	if (current_test_idx < MAX_TESTS) {
-            		if (tracker[current_test_idx].matched == 0) {
-                		if (syscall_number == tracker[current_test_idx].expected_sys_nr) {
-                    			tracker[current_test_idx].matched = 1;
-                		}
-            		}
-        	}
+        	// if (current_test_idx < MAX_TESTS) {
+         //    		if (tracker[current_test_idx].matched == 0) {
+         //        		if (syscall_number == tracker[current_test_idx].expected_sys_nr) {
+         //            			tracker[current_test_idx].matched = 1;
+         //        		}
+         //    		}
+        	// }
+	        if (current_test_idx_ptr && *current_test_idx_ptr < MAX_TESTS) {
+	            int idx = *current_test_idx_ptr;
+	            if (tracker_ptr[idx].matched == 0) {
+	                if (syscall_number == tracker_ptr[idx].expected_sys_nr) {
+	                    tracker_ptr[idx].matched = 1;
+	                }
+	            }
+	        }
        		*result = -ENOSYS;
         	return 0;
     	}

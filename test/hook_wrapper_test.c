@@ -23,13 +23,34 @@
 #include <syscall.h>
 #include <errno.h>
 
-#include "wrapper_test.h"
+// #include "wrapper_test.h"
+
+#define MAX_TESTS 500
+
+struct syscall_test_data {
+    int expected_sys_nr;
+    int matched;
+    const char* name;
+};
+
+static struct syscall_test_data *tracker_ptr = NULL;
+static int *inside_test_ptr = NULL;
+static int *current_test_idx_ptr = NULL;
 
 static syscall_no_intercept_t syscall_no_intercept = NULL;
 
 static long hook_function(long syscall_number, long a0, long a1,
               long a2, long a3, long a4, long a5, long *result)
 {
+
+    /* this is needed as we use dlmopen instead of dlopen inside vpoline */
+    if (syscall_number == 9999) {
+        tracker_ptr = (struct syscall_test_data *)a0;
+        inside_test_ptr = (int *)a1;
+        current_test_idx_ptr = (int *)a2;
+        *result = 0;
+        return 0;
+    }
     /* we're printing the final report */
     if (syscall_number == SYS_write && a0 == 1) return 1;
     /* we don't want to intercept the test executable exit */
@@ -43,14 +64,22 @@ static long hook_function(long syscall_number, long a0, long a1,
      * call was actually executed by kernel as this would surely cause segfaults
      * into the test executables
      */
-    if (inside_test) {
+    if (inside_test_ptr && *inside_test_ptr) {
         char buf[128];
         sprintf(buf, "output from hook_function: syscall number %ld\n", syscall_number);
         syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
-        if (current_test_idx < MAX_TESTS) {
-            if (tracker[current_test_idx].matched == 0) {
-                if (syscall_number == tracker[current_test_idx].expected_sys_nr) {
-                    tracker[current_test_idx].matched = 1;
+        // if (current_test_idx_ptr < MAX_TESTS) {
+        //     if (tracker[current_test_idx].matched == 0) {
+        //         if (syscall_number == tracker[current_test_idx].expected_sys_nr) {
+        //             tracker[current_test_idx].matched = 1;
+        //         }
+        //     }
+        // }
+        if (current_test_idx_ptr && *current_test_idx_ptr < MAX_TESTS) {
+            int idx = *current_test_idx_ptr;
+            if (tracker_ptr[idx].matched == 0) {
+                if (syscall_number == tracker_ptr[idx].expected_sys_nr) {
+                    tracker_ptr[idx].matched = 1;
                 }
             }
         }
