@@ -143,3 +143,24 @@ if (BUILD_TESTS)
                 "LD_PRELOAD=$<TARGET_FILE:vpoline>")
 
 endif ()
+
+##########################
+# Benchmark Compilation  #
+##########################
+
+set(GP_BENCHMARK_BULK "gp_benchmark_bulk")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/${GP_BENCHMARK_BULK}.c")
+    add_executable(${GP_BENCHMARK_BULK} benchmark/${GP_BENCHMARK_BULK}.c)
+
+    set_target_properties(${GP_BENCHMARK_BULK} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+    target_compile_options(${GP_BENCHMARK_BULK} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+    target_link_options(${GP_BENCHMARK_BULK} PRIVATE "-no-pie" "-Wl,-z,separate-code")
+
+#    target_link_libraries(${GP_BENCHMARK_BULK} PRIVATE m)
+endif()
+
+set(GP_BENCHMARK_MASTER "gp_benchmark_bulk_master")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/${GP_BENCHMARK_MASTER}.c")
+    add_executable(${GP_BENCHMARK_MASTER} benchmark/${GP_BENCHMARK_MASTER}.c)
+    target_link_libraries(${GP_BENCHMARK_MASTER} PRIVATE m)
+endif()

@@ -3,7 +3,7 @@
 #include <string.h>
 #include <math.h>
 
-#define NUM_RUNS 5000
+#define NUM_RUNS 100
 #define NUM_INSTRUCTIONS 15
 
 struct instruction_stats {
@@ -12,22 +12,27 @@ struct instruction_stats {
     double fast_means[NUM_RUNS];
 };
 
-int main() {
+void run_benchmark_set(const char *cmd, const char *out_csv_path, const char *label) {
     struct instruction_stats stats[NUM_INSTRUCTIONS];
 
-    for(int i=0; i<NUM_INSTRUCTIONS; i++) {
+    for(int i = 0; i < NUM_INSTRUCTIONS; i++) {
         stats[i].name[0] = '\0';
     }
 
-    printf("[*] Executing master: %d benchmark runs will be executed...\n", NUM_RUNS);
+    printf("\n==========================================================\n");
+    printf("[*] Executing %s: %d benchmark runs...\n", label, NUM_RUNS);
+    printf("[*] Command: %s\n", cmd);
+    printf("==========================================================\n");
 
     for (int run = 0; run < NUM_RUNS; run++) {
-        if (run % 100 == 0) printf("    Completed %d/%d runs...\n", run, NUM_RUNS);
+        if (run > 0 && run % 500 == 0) {
+            printf("    Completed %d/%d runs...\n", run, NUM_RUNS);
+        }
 
-        FILE *fp = popen("LD_PRELOAD=../build/libvpoline.so ./gp_benchmark_bulk", "r");
+        FILE *fp = popen(cmd, "r");
         if (fp == NULL) {
             perror("Failed to run benchmark");
-            exit(1);
+            exit(EXIT_FAILURE);
         }
 
         char line[256];
@@ -36,7 +41,7 @@ int main() {
         while (fgets(line, sizeof(line), fp) != NULL) {
             char insn[32];
             double slow, fast;
-            
+
             if (sscanf(line, "%[^,],%lf,%lf", insn, &slow, &fast) == 3) {
                 if (run == 0) {
                     strncpy(stats[instr_idx].name, insn, sizeof(stats[instr_idx].name)-1);
@@ -50,7 +55,18 @@ int main() {
         pclose(fp);
     }
 
-    printf("[*] All runs finished. Computing stats...\n\n");
+    printf("[*] All runs finished. Computing stats for %s...\n\n", label);
+
+    FILE *out = NULL;
+    if (out_csv_path != NULL) {
+        out = fopen(out_csv_path, "w");
+        if (!out) {
+            perror("Failed to open output CSV file");
+        } else {
+            fprintf(out, "Insn,Slow Path (ns),sp_stddev,Fast Path (ns),fp_stddev\n");
+        }
+    }
+
     printf("%-10s,%-20s,%-20s,%-20s,%-20s\n", "Insn","Slow Path (ns)","sp_stddev","Fast Path (ns)","fp_stddev");
 
     for (int i = 0; i < NUM_INSTRUCTIONS; i++) {
@@ -70,15 +86,43 @@ int main() {
             var_slow += pow(stats[i].slow_paths[r] - mean_slow, 2);
             var_fast += pow(stats[i].fast_means[r] - mean_fast, 2);
         }
-        
+
         double stddev_slow = sqrt(var_slow / (NUM_RUNS - 1));
         double stddev_fast = sqrt(var_fast / (NUM_RUNS - 1));
 
+        /* outputs on screen */
         printf("%s,%f,%f,%f,%f\n",
             stats[i].name,
             mean_slow, stddev_slow,
             mean_fast, stddev_fast);
+
+        /* outputs on CSV */
+        if (out) {
+            fprintf(out, "%s,%f,%f,%f,%f\n",
+                stats[i].name,
+                mean_slow, stddev_slow,
+                mean_fast, stddev_fast);
+        }
     }
 
-    return 0;
+    if (out) {
+        fclose(out);
+        printf("\n[+] Results successfully saved to: %s\n", out_csv_path);
+    }
+}
+
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <baseline_csv_path> <vpoline_csv_path>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    const char *baseline_csv = argv[1];
+    const char *vpoline_csv = argv[2];
+
+    run_benchmark_set("~/vpoline/build/bin/gp_benchmark_bulk", baseline_csv, "Baseline (native)");
+
+    run_benchmark_set("LD_PRELOAD=~/vpoline/build/libvpoline.so ~/vpoline/build/bin/gp_benchmark_bulk", vpoline_csv, "vpoline (LD_PRELOAD)");
+
+    return EXIT_SUCCESS;
 }

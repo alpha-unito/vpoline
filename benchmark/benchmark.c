@@ -8,23 +8,25 @@
 #include <string.h>
 
 #ifdef DEBUG
-    #define N_ITERATIONS 10
+    #define N_ITERATIONS 5
 #else
     #define N_ITERATIONS 1000
 #endif
 
 #define ITERATIONS N_ITERATIONS
-#define WARMUP 10
-#define JUNK_FILE "./sha256sum_benchmark_junk.bin"
-#define LIBZPOLINE "/home/omonticelli/vpoline/build/libvpoline.so"
-#define SUD "/home/omonticelli/vpoline/benchmark/libsud_custom.so"
-#define SYSCALL_INTERCEPT "/home/omonticelli/gekko_syscall_intercept/build/libsyscall_intercept.so"
-#define TESTED_EXE "/usr/bin/sha256sum"
+#define WARMUP 5
+#define JUNK_FILE         HOME_DIR "/sha256sum_benchmark_junk.bin"
+#define LIBZPOLINE        HOME_DIR "/vpoline/build/libvpoline.so"
+#define SUD               HOME_DIR "/vpoline/benchmark/libsud_custom.so"
+#define SYSCALL_INTERCEPT HOME_DIR "/syscall_intercept/build/libsyscall_intercept.so"
+#define DUMMY_EXE         HOME_DIR "/vpoline/build/bin/dummy"
 
 typedef struct {
     double mean_ms;
     double stddev_ms;
 } BenchResult;
+
+const char *tested_exe = NULL;
 
 /* executes command and measures run time */
 double run_and_measure(const char *path, char *const argv[], int use_zpoline, int use_sud, int use_intercept) {
@@ -77,12 +79,15 @@ BenchResult run_benchmark(const char *name, const char *path, char *const argv[]
 
     int iterations = ITERATIONS;
     int warmup = WARMUP;
+#ifndef DEBUG
     if (strcmp(path, "/usr/bin/strace") == 0 &&
-        strcmp(TESTED_EXE, "/usr/bin/dd") == 0) {
+        strcmp(tested_exe, "/usr/bin/dd") == 0) {
         /* strace is much slower, reduce to a reasonable number of iterations */
         iterations = ITERATIONS / 10;
         warmup = WARMUP / 10;
     }
+#endif
+
 
     double *times = malloc(sizeof(double) * iterations);
     double sum = 0.0;
@@ -150,58 +155,77 @@ void create_junk_file() {
     printf("Successfully generated file. Start benchmark...\n\n");
 }
 
-int main() {
+int main(int argc, char *argv[]) {
 
-    char *ls_argv[] = {"/usr/bin/ls", "-l", ".", NULL};
-    char *dd_argv[] = {"/usr/bin/dd", "if=/dev/zero", "of=/dev/null", "bs=4k", "count=100000", NULL};
-    char *gzip_argv[] = {"/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
-    char *sha_argv[] = {"/usr/bin/sha256sum", JUNK_FILE, NULL};
-    char *dummy_argv[] = {"./dummy", NULL};
-    char *mem_argv[] = {"./mem_stresser", NULL};
-    char *strace_ls_argv[] = {"/usr/bin/strace", "/usr/bin/ls", "-l", ".", NULL};
-    char *strace_dd_argv[] = {"/usr/bin/strace", "/usr/bin/dd", "if=/dev/zero", "of=/dev/null", "bs=4k", "count=100000", NULL};
-    char *strace_gzip_argv[] = {"/usr/bin/strace", "/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
-    char *strace_sha_argv[] = {"/usr/bin/strace", "/usr/bin/sha256sum", JUNK_FILE, NULL};
-    char *strace_mem_argv[] = {"/usr/bin/strace", "./mem_stresser", NULL};
-
-    FILE* json_file = fopen("benchmark_results.json", "w");
-    if (!json_file) {
-        perror("Errore: impossibile creare il file JSON per i risultati");
-        // Non usciamo con exit(1) così quantomeno stampa a schermo
+    if (argc < 3) {
+        fprintf(stderr, "Usage: %s <dd|sha256sum> </path/to/output.json>\n", argv[0]);
+        return 1;
     }
 
-    if (strcmp(TESTED_EXE, "/usr/bin/sha256sum") == 0) {
+    // char *ls_argv[] = {"/usr/bin/ls", "-l", ".", NULL};
+    // char *gzip_argv[] = {"/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
+    // char *mem_argv[] = {"./mem_stresser", NULL};
+    // char *strace_ls_argv[] = {"/usr/bin/strace", "/usr/bin/ls", "-l", ".", NULL};
+    // char *strace_gzip_argv[] = {"/usr/bin/strace", "/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
+    // char *strace_mem_argv[] = {"/usr/bin/strace", "./mem_stresser", NULL};
+
+    char *dd_argv[] = {"/usr/bin/dd", "if=/dev/zero", "of=/dev/null", "bs=4k", "count=100000", NULL};
+    char *sha_argv[] = {"/usr/bin/sha256sum", JUNK_FILE, NULL};
+    char *dummy_argv[] = {DUMMY_EXE, NULL};
+    char *strace_dd_argv[] = {"/usr/bin/strace", "/usr/bin/dd", "if=/dev/zero", "of=/dev/null", "bs=4k", "count=100000", NULL};
+    char *strace_sha_argv[] = {"/usr/bin/strace", "/usr/bin/sha256sum", JUNK_FILE, NULL};
+
+    char **tested_argv = NULL;
+    char **strace_tested_argv = NULL;
+
+    if (strcmp(argv[1], "dd") == 0) {
+        tested_exe = "/usr/bin/dd";
+        tested_argv = dd_argv;
+        strace_tested_argv = strace_dd_argv;
+    } else if (strcmp(argv[1], "sha256sum") == 0) {
+        tested_exe = "/usr/bin/sha256sum";
+        tested_argv = sha_argv;
+        strace_tested_argv = strace_sha_argv;
         create_junk_file();
+    } else {
+        fprintf(stderr, "Error: target not supported ('%s'). Specify 'dd' or 'sha256sum'.\n", argv[1]);
+        return 1;
+    }
+
+    const char *json_path = argv[2];
+    FILE* json_file = fopen(json_path, "w");
+    if (!json_file) {
+        perror("Errore: impossibile creare il file JSON per i risultati");
     }
 
     printf("=== RISC-V zpoline benchmark ===\n\n");
 
     /* ./dummy */
-    BenchResult res_dummy_native = run_benchmark("untouched dummy", "./dummy", dummy_argv, 0, 0, 0);
+    BenchResult res_dummy_native = run_benchmark("untouched dummy", DUMMY_EXE, dummy_argv, 0, 0, 0);
 
     /* LD_PRELOAD=.../libzpoline.so ./dummy */
-    BenchResult res_dummy_zpoline = run_benchmark("zpoline-intercepted dummy", "./dummy", dummy_argv, 1, 0, 0);
+    BenchResult res_dummy_zpoline = run_benchmark("zpoline-intercepted dummy", DUMMY_EXE, dummy_argv, 1, 0, 0);
 
     /* LD_PRELOAD=.../libsyscall_intercept.so ./dummy */
-    BenchResult res_dummy_intercept = run_benchmark("syscall_intercept-intercepted dummy", "./dummy", dummy_argv, 0, 0, 1);
+    BenchResult res_dummy_intercept = run_benchmark("syscall_intercept-intercepted dummy", DUMMY_EXE, dummy_argv, 0, 0, 1);
 
     /* LD_PRELOAD=.../libsud_custom.so ./dummy */
-    BenchResult res_dummy_sud = run_benchmark("sud-intercepted dummy", "./dummy", dummy_argv, 0, 1, 0);
+    BenchResult res_dummy_sud = run_benchmark("sud-intercepted dummy", DUMMY_EXE, dummy_argv, 0, 1, 0);
 
     /* TESTED_EXE */
-    BenchResult res_exe_native = run_benchmark("untouched exe", TESTED_EXE, sha_argv, 0, 0, 0);
+    BenchResult res_exe_native = run_benchmark("untouched exe", tested_exe, tested_argv, 0, 0, 0);
 
     /* LD_PRELOAD=.../libzpoline.so TESTED_EXE */
-    BenchResult res_exe_zpoline = run_benchmark("zpoline-intercepted exe", TESTED_EXE, sha_argv, 1, 0, 0);
+    BenchResult res_exe_zpoline = run_benchmark("zpoline-intercepted exe", tested_exe, tested_argv, 1, 0, 0);
 
     /* LD_PRELOAD=.../libsyscall_intercept.so TESTED_EXE */
-    BenchResult res_exe_intercept = run_benchmark("syscall_intercept-intercepted exe", TESTED_EXE, sha_argv, 0, 0, 1);
+    BenchResult res_exe_intercept = run_benchmark("syscall_intercept-intercepted exe", tested_exe, tested_argv, 0, 0, 1);
 
     /* strace TESTED_EXE */
-    BenchResult res_exe_strace = run_benchmark("strace-intercepted exe", "/usr/bin/strace", strace_sha_argv, 0, 0, 0);
+    BenchResult res_exe_strace = run_benchmark("strace-intercepted exe", "/usr/bin/strace", strace_tested_argv, 0, 0, 0);
 
     /* LD_PRELOAD=.../libsud_custom.so TESTED_EXE */
-    BenchResult res_exe_sud = run_benchmark("sud-intercepted exe", TESTED_EXE, sha_argv, 0, 1, 0);
+    BenchResult res_exe_sud = run_benchmark("sud-intercepted exe", tested_exe, tested_argv, 0, 1, 0);
 
     double zpoline_init_overhead = res_dummy_zpoline.mean_ms - res_dummy_native.mean_ms;
     double zpoline_init_stddev = sqrt(pow(res_dummy_zpoline.stddev_ms, 2) + pow(res_dummy_native.stddev_ms, 2));
@@ -222,7 +246,7 @@ int main() {
 
 
     printf("\n=== TIME MEASUREMENTS ===\n");
-    printf("\nTesting %s\n\n", TESTED_EXE);
+    printf("\nTesting %s\n\n", tested_exe);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "untouched exe", res_exe_native.mean_ms, res_exe_native.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "zpoline-intercepted exe", res_exe_zpoline.mean_ms, res_exe_zpoline.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "syscall_intercept-intercepted exe", res_exe_intercept.mean_ms, res_exe_intercept.stddev_ms);
@@ -265,7 +289,7 @@ int main() {
         fprintf(json_file, "    },\n");
 
         /* Zpoline (Without Init) */
-        fprintf(json_file, "    \"zpoline exe (without init)\": {\n");
+        fprintf(json_file, "    \"vpoline exe (without init)\": {\n");
         fprintf(json_file, "        \"mean\": %.2f,\n", zpoline_exe_runtime);
         fprintf(json_file, "        \"stddev\": %.2f\n", zpoline_exe_runtime_stddev);
         fprintf(json_file, "    },\n");
@@ -291,7 +315,7 @@ int main() {
         fprintf(json_file, "}\n");
         fclose(json_file);
 
-        printf("\n[INFO] Risultati JSON salvati con successo in 'benchmark_results.json'\n");
+        printf("\n[INFO] Results successfully saved in '%s'\n", json_path);
     }
 
     return 0;
