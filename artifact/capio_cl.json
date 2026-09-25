@@ -1,0 +1,17 @@
+{
+    "name" : "benchmark",
+    "IO_Graph" : [
+        {
+            "name" : "all",
+            "input_stream" : ["data.dat"],
+            "output_stream" : ["data.dat"],
+            "streaming" : [
+                {
+                    "name" : ["data.dat"],
+                    "committed" : "on_close",
+                    "mode" : "no_update"
+                }
+            ]
+        }
+    ]
+}

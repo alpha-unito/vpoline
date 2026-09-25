@@ -30,8 +30,8 @@ static int log_syscall(struct kprobe *probe, struct pt_regs *regs)
 	if (current->tgid != target_pid)
 		return 0;
 
-	pr_info("intercepted %s from pid %d\n", probe->symbol_name,
-		current->tgid);
+	// pr_info("intercepted %s from pid %d\n", probe->symbol_name,
+	// 	current->tgid);
 	return 0;
 }
 

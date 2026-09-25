@@ -1,0 +1,28 @@
+#####################################
+# Project-wide settings
+#####################################
+cmake_minimum_required(VERSION 3.15)
+
+project(vpoline)
+
+#####################################
+# CMake module imports
+#####################################
+include(ExternalProject)
+
+#####################################
+# Import external project from git
+#####################################
+FetchContent_Declare(vpoline
+        GIT_REPOSITORY git@github.com:alpha-unito/vpoline.git
+        GIT_TAG dev
+        PREFIX ${CMAKE_CURRENT_BINARY_DIR}
+        CMAKE_ARGS
+        -DBUILD_TESTS=OFF
+        -DBUILD_EXAMPLES=OFF
+        -DCMAKE_BUILD_TYPE=Release
+        -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+)
+
+FetchContent_MakeAvailable(vpoline)

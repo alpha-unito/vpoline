@@ -8,8 +8,8 @@ mkdir -p "$RESULTS_DIR"
 WRAPPER_TEST_EXE="$HOME/vpoline/test/wrapper_test"
 INTERCEPT_HOOK="$HOME/vpoline/test/intercept_sys_wrapper"
 VPOLINE_HOOK="$HOME/vpoline/test/hook_wrapper_test"
-LIBVPOLINE="$HOME/vpoline/build/libvpoline.so"
-LIBSYSCALL_INTERCEPT="$HOME/syscall_intercept/build/libsyscall_intercept.so"
+LIBVPOLINE_BASE="$HOME/vpoline/build/libvpoline.so"
+LIBSYSCALL_INTERCEPT_BASE="$HOME/syscall_intercept/build/libsyscall_intercept.so"
 
 ################################################################################
 
@@ -24,10 +24,14 @@ for VER in "${VERSIONS[@]}"; do
     echo "---------------------------------------------------"
     echo "Setting up environment for Glibc $VER"
 
+
     # 1. Create copies of the original binaries
     cp "${WRAPPER_TEST_EXE}" "${WRAPPER_TEST_EXE}_${VER}"
     cp "${INTERCEPT_HOOK}.so" "${INTERCEPT_HOOK}_${VER}.so"
     cp "${VPOLINE_HOOK}.so" "${VPOLINE_HOOK}_${VER}.so"
+
+    cp "${LIBVPOLINE_BASE}" "$HOME/vpoline/build/libvpoline_${VER}.so"
+    cp "${LIBSYSCALL_INTERCEPT_BASE}" "$HOME/syscall_intercept/build/libsyscall_intercept_${VER}.so"
 
     # 2. Patch executable to make sure it uses the current glibc version
     ./patch.sh "$VER" "${WRAPPER_TEST_EXE}_${VER}" > /dev/null
@@ -37,14 +41,18 @@ for VER in "${VERSIONS[@]}"; do
     ./so_patch.sh "$VER" "${INTERCEPT_HOOK}_${VER}.so" > /dev/null
     ./so_patch.sh "$VER" "${VPOLINE_HOOK}_${VER}.so" > /dev/null
 
+    ./so_patch.sh "$VER" "$HOME/vpoline/build/libvpoline_${VER}.so" > /dev/null
+    ./so_patch.sh "$VER" "$HOME/syscall_intercept/build/libsyscall_intercept_${VER}.so" > /dev/null
+
     echo "Run [vpoline] on Glibc $VER..."
     # Saving coverage report on logfile
-    LD_PRELOAD="$LIBVPOLINE" LIBVPHOOK="${VPOLINE_HOOK}_${VER}.so" \
+    LD_PRELOAD="$HOME/vpoline/build/libvpoline_${VER}.so" LIBVPHOOK="${VPOLINE_HOOK}_${VER}.so" \
         "${WRAPPER_TEST_EXE}_${VER}" > "$RESULTS_DIR/vpoline_glibc_$VER.log" 2>&1 || true
 
     echo "Run [syscall_intercept] on Glibc $VER..."
     # Preload both the engine and the patched hook library
-    LD_PRELOAD="$LIBSYSCALL_INTERCEPT:${INTERCEPT_HOOK}_${VER}.so" \
+    LD_LIBRARY_PATH="$HOME/syscall_intercept/build:$HOME/vpoline/test"
+    LD_PRELOAD="$HOME/syscall_intercept/build/libsyscall_intercept_${VER}.so:${INTERCEPT_HOOK}_${VER}.so" \
         "${WRAPPER_TEST_EXE}_${VER}" > "$RESULTS_DIR/syscall_intercept_glibc_$VER.log" 2>&1 || true
 
     echo "Runs for Glibc $VER completed."
