@@ -16,12 +16,12 @@ qemu-system-riscv64 \
     -smp 4 \
     -cpu rv64 \
     -nographic \
-	-bios default \
+    -bios default \
     -kernel /usr/lib/u-boot/qemu-riscv64_smode/uboot.elf \
     -drive file=$IMAGE_FILE,format=qcow2,if=virtio \
-	-netdev user,id=net0,hostfwd=tcp::$SSH_PORT-:22 \
-	-device virtio-net-device,netdev=net0 \
-	> qemu_output.log 2>&1 &
+    -netdev user,id=net0,hostfwd=tcp::$SSH_PORT-:22,hostfwd=tcp::6380-:6379 \
+    -device virtio-net-device,netdev=net0 \
+    > qemu_output.log 2>&1 &
 
 QEMU_PID=$!
 

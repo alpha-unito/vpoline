@@ -10,7 +10,7 @@ fi
 
 OUTPUT_FILE="$1"
 TARGET_IP="127.0.0.1"
-TARGET_PORT="6379"
+TARGET_PORT="6380"
 ITERATIONS=4
 
 # Added xadd to match your CSV example
