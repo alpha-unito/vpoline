@@ -20,6 +20,7 @@ set -euo pipefail
 # Configuration — edit these to taste
 # ---------------------------------------------------------------------------
 BINARY="$HOME/vpoline/artifact/data_rw"
+SRC_EXECUTABLE="$HOME/vpoline/artifact/io_test.cpp"
 ITERATIONS=3
 
 CAPIO_CL_CONFIG_PATH=$HOME/vpoline/artifact/capio_cl.json
@@ -39,6 +40,7 @@ SYSCALL_CAPIO_SERVER_PATH=$SYSCALL_BASEDIR/capio/server/capio_server
 
 RESULTS_DIR=$HOME/mw26_artifact_evaluation/capio
 mkdir -p "$RESULTS_DIR"
+g++ -o $BINARY $SRC_EXECUTABLE
 
 export CAPIO_DIR=.
 export CAPIO_WORKFLOW_NAME=benchmark
