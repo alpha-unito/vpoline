@@ -1,12 +1,16 @@
 # Call for Artifacts - Middleware 2026
 
-## Table of Contents
-- [Artifact Description](#artifact-description)
-- [Artifact Available](#artifact-availability)
+## Table of contents
+- [Artifact description](#artifact-description)
+  - [Badge requests](#badge-requests)
+  - [System requirements](#system-requirements)
+  - [Output interpretation](#output-interpretation)
+  - [Artifact Content](#artifact-content)
 - [QEMU](#qemu)
 - [RISC-V Hardware](#risc-v-hardware)
+- [Evaluating results](#evaluating-results)
 
-## Artifact Description
+## Artifact description
 The artifact presented in this document allows to reproduce the tests and
 benchmarks presented in section 5 of the paper "Exhaustive System Call
 Interception on RISC-V". Scripts are provided to automatize the full process as
@@ -15,16 +19,62 @@ much as possible. Two options are provided:
 Qemu](#qemu).
 - Run the test suite on [actual RISC-V hardware](#risc-v-hardware).
 
-### Requirements
-- The provided scripts expect to be run on a **Debian-based** Linux distribution,
-both that reviewers plan to run QEMU on an x86_64 or aarch64 host, or that
-reviewers plan to run the benchmarks on actual RISC-V hardware.
-- `sudo` privileges are required to install dependencies and to run some of the
-benchmarks (e.g., kprobes).
+Access to a machine supporting all the tested interception technologies can be
+provided if the reviewers think that's necessary. Please contact the authors of
+the paper in this case.
 
-## Artifact Availability
-The full artifact is publicly available at the linked zenodo repository:
-https://zenodo.org/record/10000000. Files for both options are contained.
+### Badge requests
+We are requesting for all three possible badges as we provide an artifact to
+reproduce the main results presented in the paper
+
+### System requirements
+- Debian-based Linux distribution running on RISC-V hardware to run the
+  benchmarks natively, **or**
+- Debian-based Linux distribution running on x86_64 hardware to run the
+  benchmarks inside a QEMU virtual environment emulating a RISC-V machine.
+
+We provide scripts and detailed step-by-step instructions to support reviewers
+whichever option they choose. The scripts are designed to be run on a
+Debian-based Linux distribution. `sudo` access can be required to install 
+dependencies and load kernel modules.
+
+### Output interpretation
+Obtaining the same exact results as reported in the paper is very unlikely, as
+different machines and kernel versions can lead to different results. Moreover,
+some methods such as kprobes and SUD are not supported by default, so
+guaranteeing that all interception methods will be available on possible
+reviewers' machines is out of our control. That is why we provide instruction
+for a virtual and tested environment. Time measurements on an emulation
+will not be directly comparable with the ones obtained on actual hardware, but
+they are still meaningful to compare the different interception methods and
+evaluate how they perform against each other.
+
+At the end of the experiment, majority of results will be grouped in dedicated
+folders inside of `~/mw26_artifact_evaluation`, both that you opted for QEMU or
+actual RISC-V hardware. The results for the redis benchmark will be stored in
+the host machine instead, in the same directory where you ran
+`run_redis_bench.sh`.
+We suggest copying to your host machine the full `~/mw26_artifact_evaluation`,
+creating a subdirectory `redis/` and grouping the redis-related CSVs there.
+The provided python scripts can be downloaded from Zenodo and placed in the
+related subdirectory to generate graphs.
+
+### Artifact Content
+
+- `capio-vpoline-main.zip`: CAPIO source code using vpoline as intercepting
+   library. If you choose the QEMU option, you can ignore this .zip.
+- `setup_qemu_environment.sh`: script to install all dependencies needed to run
+   the QEMU virtual environment.
+- `start_qemu.sh`: script to start the QEMU virtual environment.
+- `setup_hardware_environment.sh`: script to install all dependencies needed to
+   run the benchmarks on actual RISC-V hardware.
+- `run_redis_bench.sh`: script to run the redis benchmark on the host machine.
+- `ubuntu-riscv64-vpoline-artifact.qcow2`: QEMU image of Ubuntu 24.04 RISC-V
+   with all dependencies and scripts pre-installed. If you choose the RISC-V
+   hardware option, you can ignore this .qcow2 image.
+
+The majority of the scripts are not contained in the artifact as they are
+contained in the `vpoline` repository.
 
 The full `vpoline` source code is publicly available at the linked GitHub
 repository:
@@ -32,7 +82,7 @@ https://github.com/alpha-unito/vpoline/tree/dev
 
 ## QEMU
 
-After downloading the artifact from zenodo, you'll need to run the following
+After downloading the artifact from Zenodo, you'll need to run the following
 script to install all necessary dependencies.
 ```shell
 ./setup_qemu_environment.sh
@@ -122,13 +172,21 @@ would take several hours on actual RISC-V hardware.
 
 **5. CAPIO**
 
-As for all other experiments, CAPIO and the benchmark executable are already
-compiled. All you need to do is from `~/vpoline/artifact` run the following
-command:
-```shell
-./capio_launch_bench.sh
-```
+Unfortunately, we did not manage to successfully run CAPIO in QEMU with vpoline
+preloaded. For executing this benchmark we suggest using actual RISC-V
+hardware, where this is possible without any restriction.
 
+[//]: # (As for all other experiments, CAPIO and the benchmark executable are already)
+
+[//]: # (compiled. All you need to do is from `~/vpoline/artifact` run the following)
+
+[//]: # (command:)
+
+[//]: # (```shell)
+
+[//]: # (./capio_launch_bench.sh)
+
+[//]: # (```)
 
 **6. Redis**
 
@@ -147,7 +205,7 @@ Then, on the host machine, assuming the `pwd` is `~/vpoline/artifact`, run the
 following command to execute the redis benchmark:
 ```shell
 #on host machine
-./run_redis_bench.sh baseline.csv 6380
+./run_redis_bench.sh baseline.csv 127.0.0.1 6380
 ```
 Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
 emulated RISC-V environment and repeat the process for the other interception
@@ -162,7 +220,7 @@ redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh vpoline.csv 6380
+./run_redis_bench.sh vpoline.csv 127.0.0.1 6380
 ```
 Syscall_intercept
 ```shell
@@ -173,7 +231,7 @@ redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh syscall_intercept.csv 6380
+./run_redis_bench.sh syscall_intercept.csv 127.0.0.1 6380
 ```
 Strace
 ```shell
@@ -182,7 +240,7 @@ strace -o /dev/null redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh strace.csv 6380
+./run_redis_bench.sh strace.csv 127.0.0.1 6380
 ```
 
 At this point all the results should be stored in `~/mw26_artifact_evaluation`.
@@ -197,7 +255,7 @@ Then you can run `sudo poweroff` to
 turn off the QEMU emulation and after a few seconds the first terminal that ran
 the `start_qemu.sh` script will return to the command line.
 
-In the downloaded artifact from zenodo, we provide python scripts to generate
+In the downloaded artifact from Zenodo, we provide python scripts to generate
 the graph which can be compared with the ones presented in the paper.
 
 
@@ -208,7 +266,7 @@ distributions. Moreover, support for SUD and kprobes is out of our control and
 depends on the hardware/kernel configuration.
 
 In case the artifact reviewers would like to run the benchmarks on actual RISC-V
-hardware, then they will need to download the artifact from zenodo and install
+hardware, then they will need to download the artifact from Zenodo and install
 the needed dependencies. As mentioned before, we provide scripts that assume to
 be executed on a Debian-based Linux distribution.\
 Kprobes and SUD support depend on the hardware/kernel configuration. We cannot
@@ -216,9 +274,9 @@ guarantee that results all the interception methods will be available on your
 machines.
 
 First of all, make sure you're in your $HOME directory (`cd ~`) and download the
-script `setup_hardware_environment.sh` from zenodo
+script `setup_hardware_environment.sh` from Zenodo
 ```shell
-wget https://zenodo.org/record/10000000/files/setup_hardware_environment.sh
+wget <replace-with-url-to-setup_hardware_environment.sh-from-zenodo>
 ```
 Then run the script to install all dependencies:
 ```shell
@@ -288,7 +346,13 @@ would take several hours on actual RISC-V hardware.
 
 **5. CAPIO**
 
-First of all, we need to compile CAPIO. From `~/vpoline/artifact` run:
+Assuming `pwd` is `$HOME`, first of all we need to download CAPIO source code:
+```shell
+wget <replace-with-url-to-capio-vpoline-main-zip-from-zenodo>
+unzip capio-vpoline-main.zip
+```
+
+Then, we need to compile CAPIO. From `~/vpoline/artifact` run:
 ```shell
 ./compile_capio.sh
 ```
@@ -360,18 +424,20 @@ strace -o /dev/null redis-server --bind 0.0.0 --protected-mode no
 ./run_redis_bench.sh strace.csv <ip-address-of-riscv-machine>
 ```
 
-
-
-[//]: # (TODO: compilazione di capstone, vpoline, syscall_intercept con copia di
-          CMakeLists.txt con path per capstone, download e compilazione delle
-          diverse glibc, compilazione del kernel module, data_rw,
-          intercept_sys_forward.so, hook_forward.so)
-
 ## Evaluating results
 
 After executing all the experiments, results will be store in the
-`~/mw26_artifact_evaluation` directory. We suggest copying the full folder to
-your local machine to generate graphs.
+`~/mw26_artifact_evaluation` directory, except the redis results files which are
+now stored wherever you executed `run_redis_bench.sh`. As mentioned before, we
+suggest copying the full folder to your host machine, creating a subdirectory
+called `redis/` and moving the redis-related CSVs there.
 
-**1. Patching coverage:**
-This result can be evaluated by inspection of the reported results
+Experiment 1 does not require any graph generation. Results can be evaluated
+by inspecting the generated reports and comparing them with results presented in
+the paper.
+
+Experiments 2-6: the Zenodo repository contains python scripts to generate
+graphs to be compared with the ones presented in the paper. They have to be
+manually downloaded and placed in the related subdirectory of
+`~/mw26_artifact_evaluation`. Executing them will generate the related graph in
+as a PDF file.
