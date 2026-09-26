@@ -72,6 +72,8 @@ related subdirectory to generate graphs.
 - `ubuntu-riscv64-vpoline-artifact.qcow2`: QEMU image of Ubuntu 24.04 RISC-V
    with all dependencies and scripts pre-installed. If you choose the RISC-V
    hardware option, you can ignore this .qcow2 image.
+- `<test_name>_plot.py`: python scripts to generate the graph for the related
+   test. They have to be manually downloaded from Zenodo and placed
 
 The majority of the scripts are not contained in the artifact as they are
 contained in the `vpoline` repository.
