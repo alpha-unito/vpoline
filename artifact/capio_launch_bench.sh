@@ -23,6 +23,7 @@ SYSCALL_LIBCAPIO_PATH=$SYSCALL_BASEDIR/capio/posix/libcapio_posix.so.1.0.0
 SYSCALL_CAPIO_SERVER_PATH=$SYSCALL_BASEDIR/capio/server/capio_server
 
 RESULTS_DIR=$HOME/mw26_artifact_evaluation/capio
+mkdir -p "$RESULTS_DIR"
 
 export CAPIO_DIR=.
 export CAPIO_WORKFLOW_NAME=benchmark

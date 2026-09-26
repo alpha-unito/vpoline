@@ -3,7 +3,7 @@
 ## Table of Contents
 - [Artifact Description](#artifact-description)
 - [Artifact Available](#artifact-availability)
-- [QEMU login](#qemu-login)
+- [QEMU](#qemu)
 - [RISC-V Hardware](#risc-v-hardware)
 
 ## Artifact Description
@@ -122,7 +122,19 @@ would take several hours to actual RISC-V hardware.
 
 **5. CAPIO**
 
+As for all other experiments, CAPIO and the benchmark executable are already
+compiled. All you need to do is from `~/vpoline/artifact` run the following
+command:
+```shell
+./capio_launch_bench.sh
+```
+
+
 **6. redis**
+
+To benchmark redis, we need to run the server and the client on two different
+hosts. In this case, we suggest using the emulated RISC-V environment for the
+server and the host machine (x86_64 or aarch64) for the client.\
 
 When finished, you can copy the results stored in `~/mw26_artifact_evaluation`
 to your local machine to generate graphs. Then you can run `sudo poweroff` to 
