@@ -92,7 +92,7 @@ In the first window, run this command to start the kprobes measurement:
 It will print PID on screen, copy it and use it in the second windows to
 correctly load the kernel module. Assuming that after connecting via SSH `pwd`
 is `/home/ubuntu/` in the additional window, run the following command by
-replacing <PID> with the PID copied from the first window:
+replacing \<PID> with the PID copied from the first window:
 ```shell
 cd vpoline/benchmark/kprobes/build
 sudo insmod example.ko target_pid=<PID>
@@ -118,7 +118,7 @@ From `~/vpoline/artifact` run the following command:
 Please note that we reduced the number of iterations to 5 for each interception
 method just to present a minimal stats set and a proof of correct execution.
 The results discussed in the paper were obtained out of 1000 iterations, which
-would take several hours to actual RISC-V hardware.
+would take several hours on actual RISC-V hardware.
 
 **5. CAPIO**
 
@@ -130,18 +130,83 @@ command:
 ```
 
 
-**6. redis**
+**6. Redis**
 
 To benchmark redis, we need to run the server and the client on two different
 hosts. In this case, we suggest using the emulated RISC-V environment for the
 server and the host machine (x86_64 or aarch64) for the client.\
+The test must be run four times, one for each of the reported interception
+methods.\
+In the emulated RISC-V environment, execute the following command to natively
+run redis-server:
+```shell
+#on emulated RISC-V environment
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+Then, on the host machine, assuming the `pwd` is `~/vpoline/artifact`, run the
+following command to execute the redis benchmark:
+```shell
+#on host machine
+./run_redis_bench.sh baseline.csv
+```
+Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
+emulated RISC-V environment and repeat the process for the other interception
+methods.
 
-When finished, you can copy the results stored in `~/mw26_artifact_evaluation`
-to your local machine to generate graphs. Then you can run `sudo poweroff` to 
-turn off the QEMU emulation and after a few seconds, the first terminal that ran
+Vpoline
+```shell
+#on emulated RISC-V environment
+LD_PRELOAD=../build/libvpoline.so \
+LIBVPHOOK=../test/hook_forward.so \
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh vpoline.csv
+```
+Syscall_intercept
+```shell
+#on emulated RISC-V environment
+LD_LIBRARY_PATH=../test:../../syscall_intercept/build \
+LD_PRELOAD=../test/intercept_sys_forward.so \
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh syscall_intercept.csv
+```
+Strace
+```shell
+#on emulated RISC-V environment
+strace -o /dev/null redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh strace.csv
+```
+
+At this point all the results should be stored in `~/mw26_artifact_evaluation`.
+We suggest to copy the full folder to your local machine to generate graphs.
+Since results for redis are already in the host machine, we suggest moving them
+with the other results with
+```shell
+mkdir -p ~/mw26_artifact_evaluation/redis
+mv ~/vpoline/artifact/*.csv ~/mw26_artifact_evaluation/redis
+```
+Then you can run `sudo poweroff` to 
+turn off the QEMU emulation and after a few seconds the first terminal that ran
 the `start_qemu.sh` script will return to the command line.
 
+In the downloaded artifact from zenodo, we provide python scripts to generate
+the graph which can be compared with the ones presented in the paper.
+
+
 ## RISC-V Hardware
+
+**Disclaimer**: as mentioned, we provide scripts supporting Debian-based Linux
+distributions. Moreover, support for SUD and kprobes is out of our control and
+depends on the hardware/kernel configuration.
+
 In case the artifact reviewers would like to run the benchmarks on actual RISC-V
 hardware, then they will need download the artifact from zenodo and install the
 needed dependencies. As mentioned before, we provide scripts that assume to be
@@ -149,6 +214,11 @@ executed on a Debian-based Linux distribution.\
 In this case, kprobes and SUD support depend on the hardware/kernel
 configuration. We cannot guarantee that results all the interception methods
 will be available on your machines.
+
+[//]: # (TODO: compilazione di capstone, vpoline, syscall_intercept con copia di
+          CMakeLists.txt con path per capstone, download e compilazione delle
+          diverse glibc, compilazione del kernel module, data_rw,
+          intercept_sys_forward.so, hook_forward.so)
 
 ## Evaluating results
 
