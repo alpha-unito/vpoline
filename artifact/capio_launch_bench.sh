@@ -7,7 +7,7 @@ set -euo pipefail
 BINARY="$HOME/vpoline/artifact/data_rw"
 ITERATIONS=3
 
-CAPIO_CL_CONFIG_PATH=$HOME/bench/capio_cl.json
+CAPIO_CL_CONFIG_PATH=$HOME/vpoline/artifact/capio_cl.json
 
 # File sizes to benchmark (in MB)
 SIZES=(1 2 4 8 16 32 64 128 256 512 1024 2048)

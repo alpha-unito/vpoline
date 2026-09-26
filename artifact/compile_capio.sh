@@ -9,8 +9,9 @@ EXECUTABLE=$HOME/vpoline/artifact/data_rw
 SRC_EXECUTABLE=$HOME/vpoline/artifact/io_test.cpp
 
 echo "Compiling capio with vpoline as interception library..."
-cp $CMAKE_VPOLINE $CAPIO/posix/vpoline/CMakeLists.txt
+#cp $CMAKE_VPOLINE $CAPIO/capio/posix/vpoline/CMakeLists.txt
 #cp $LIBCAPIO_VPOLINE $CAPIO/capio/posix/libcapio_posix.cpp
+rm -rf $CAPIO/build_vpoline
 mkdir -p $CAPIO/build_vpoline
 cd $CAPIO/build_vpoline
 cmake ..
@@ -28,7 +29,7 @@ make -j$(nproc)
 
 g++ -o $EXECUTABLE $SRC_EXECUTABLE
 
-./capio_launch_bench.sh
+#./capio_launch_bench.sh
 
 
 

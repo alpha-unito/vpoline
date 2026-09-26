@@ -1,4 +1,4 @@
-#!/bin/bash
+0775
 
 echo "============================================================"
 echo " vpoline Artifact Setup - Hardware RISC-V Environment"
@@ -27,7 +27,7 @@ mkdir -p $HOME/capstone-install
 cmake --install build --prefix $HOME/capstone-install
 
 echo "[*] Step 4: Building syscall_intercept"
-cp $HOME/vpoline/artifact/CMakeLists_syscall.txt $HOME/syscall_intercept/CMakeLists.txt
+cp $HOME/vpoline/artifact/CMakeLists_syscall_intercept.txt $HOME/syscall_intercept/CMakeLists.txt
 mkdir -p $HOME/syscall_intercept/build
 cd $HOME/syscall_intercept/build
 cmake .. && make

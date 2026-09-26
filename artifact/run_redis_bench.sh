@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Require an output filename as an argument
-if [[ $# -ne 1 ]]; then
-    echo "Usage: $0 <output_filename.csv>"
-    echo "Example: $0 vpoline_redis.csv"
+if [[ $# -lt 1 || $# -gt 3 ]]; then
+    echo "Usage: $0 <output_filename.csv> [target_ip] [target_port]"
+    echo "Example (Tunnel SSH / Default): $0 vpoline_redis.csv"
+    echo "Example (QEMU Local): $0 vpoline_redis.csv 127.0.0.1 6380"
+    echo "Example (LAN Board): $0 vpoline_redis.csv 192.168.1.50 6379"
     exit 1
 fi
 
 OUTPUT_FILE="$1"
-TARGET_IP="127.0.0.1"
-TARGET_PORT="6380"
+TARGET_IP="${2:-127.0.0.1}"
+TARGET_PORT="${3:-6379}"
 ITERATIONS=4
 
-# Added xadd to match your CSV example
 COMMANDS="ping_inline,set,get,incr,lpush,lpop,xadd"
 
 echo "Running Redis Benchmark on $TARGET_IP:$TARGET_PORT"
