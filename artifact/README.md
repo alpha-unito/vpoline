@@ -80,7 +80,7 @@ We can now run the 6 experiments described in the paper.\
 
 **2. Syscall latency benchmark:**
 ```shell
-./run_syscall_latency_benchmark.sh
+./syscall_latency_bench.sh
 ```
 Now results for all methods but kprobes are recorded. Since measuring kprobes
 cannot be fully automated, an addition terminal window will be needed (or using
@@ -107,7 +107,7 @@ running `sudo rmmod example` (it's not relevant on which terminal). You can run
 Let's make sure we're in `~/vpoline/artifact` before running the following
 command:
 ```shell
-./gp_fault_handling_benchmark.sh
+./gp_fault_handling_benc.sh
 ```
 **4. Macrobenchmark**
 
@@ -147,7 +147,7 @@ Then, on the host machine, assuming the `pwd` is `~/vpoline/artifact`, run the
 following command to execute the redis benchmark:
 ```shell
 #on host machine
-./run_redis_bench.sh baseline.csv
+./run_redis_bench.sh baseline.csv 6380
 ```
 Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
 emulated RISC-V environment and repeat the process for the other interception
@@ -162,7 +162,7 @@ redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh vpoline.csv
+./run_redis_bench.sh vpoline.csv 6380
 ```
 Syscall_intercept
 ```shell
@@ -173,7 +173,7 @@ redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh syscall_intercept.csv
+./run_redis_bench.sh syscall_intercept.csv 6380
 ```
 Strace
 ```shell
@@ -182,7 +182,7 @@ strace -o /dev/null redis-server --bind 0.0.0.0 --protected-mode no
 ```
 ```shell
 #on host machine
-./run_redis_bench.sh strace.csv
+./run_redis_bench.sh strace.csv 6380
 ```
 
 At this point all the results should be stored in `~/mw26_artifact_evaluation`.
@@ -224,6 +224,143 @@ Then run the script to install all dependencies:
 ```shell
 ./setup_hardware_environment.sh
 ```
+Change working directory with `cd $HOME/vpoline/artifact`. Here all the scripts
+are contained. Now you can start running the experiments.
+
+**1. Patching coverage**
+
+First you need to download and compile some different versions of the glibc.
+This will likely take some time.
+```shell
+./download_glibc.sh 2.37
+./download_glibc.sh 2.39
+./download_glibc.sh 2.41
+./download_glibc.sh 2.43
+```
+After all glibc are built, you can run the patching coverage test:
+```shell
+./run_patching_coverage.sh
+```
+**2. Syscall latency benchmark**
+
+For this benchmark you need to follow the same exact steps as for the QEMU
+environment. Run:
+```shell
+./syscall_latency_benchmark.sh
+```
+
+Now to measure kprobes latency, keep `$HOME/vpoline/artifact` as `pwd` and run:
+```shell
+../benchmark/syscall_latency ~/mw26_artifact_evaluation/syscall_latency/kprobes_syscall_latency.json 1
+```
+It will print a PID on screen. Copy it and in a new terminal window and from
+your $HOME directory run the following commands to load the kernel module. You
+need to replace \<PID> with the PID copied from the first window:
+```shell
+cd vpoline/benchmark/kprobes/build
+sudo insmod example.ko target_pid=<PID>
+```
+You can now press `Enter` on the other terminal where the test is waiting after
+the PID was printed. Remember to unload the kernel module with `sudo rmmod
+example` after the test is completed.
+
+**Disclaimer:** please remember that **kprobes** and **SUD** support depend on the
+machine kernel. We cannot guarantee that results for all the interception
+methods will be available.
+
+**3. GP-fault handling benchmark**
+
+For this benchmark, you just need to run:
+```shell
+./gp_fault_handling_bench.sh
+```
+
+**4. Macrobenchmark**
+
+From `~/vpoline/artifact` run the following command:
+```shell
+./macrobenchmark.sh
+```
+Please note that we reduced the number of iterations to 5 for each interception
+method just to present a minimal stats set and a proof of correct execution.
+The results discussed in the paper were obtained out of 1000 iterations, which
+would take several hours on actual RISC-V hardware.
+
+**5. CAPIO**
+
+First of all, we need to compile CAPIO. From `~/vpoline/artifact` run:
+```shell
+./compile_capio.sh
+```
+Then you can run the benchmark with:
+```shell
+./capio_launch_bench.sh
+```
+
+**6. Redis**
+
+To benchmark redis, we need to run the server and the client on two different
+hosts. In this case, the server must run on the RISC-V machine while the host
+machine (x86_64 or aarch64) will run the client which will generate reports.
+The test must be run four times, one for each of the reported interception
+methods.
+We need to compile the hooks forwarding the system call to the kernel:
+```shell
+./compile_redis_hooks.sh
+```
+When launching the benchmarking script on the host machine, you need to replace
+\<ip-address-of-riscv-machine> with the actual IP address of the RISC-V machine.
+You can find it by running `ip a` on the RISC-V machine.
+
+On the RISC-V machine, execute the following command to natively run
+redis-server:
+```shell
+#on RISC-V machine
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+Then, on the host machine, wherever you downloaded artifact files, run:
+```shell
+#on host machine
+./run_redis_bench.sh baseline.csv <ip-address-of-riscv-machine>
+```
+Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
+RISC-V machine and repeat the process for the other interception methods.
+
+On the RISC-V machine you'll have to keep staying in `$HOME/vpoline/artifact`.
+
+Vpoline
+```shell
+#on RISC-V machine
+LD_PRELOAD=../build/libvpoline.so \
+LIBVPHOOK=../test/hook_forward.so \
+redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh vpoline.csv <ip-address-of-riscv-machine>
+```
+Syscall_intercept
+```shell
+#on RISC-V machine
+LD_LIBRARY_PATH=../test:../../syscall_intercept/build \
+LD_PRELOAD=../test/intercept_sys_forward.so \
+redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh syscall_intercept.csv <ip-address-of-riscv-machine>
+```
+Strace
+```shell
+#on RISC-V machine
+strace -o /dev/null redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh strace.csv <ip-address-of-riscv-machine>
+```
+
+
 
 [//]: # (TODO: compilazione di capstone, vpoline, syscall_intercept con copia di
           CMakeLists.txt con path per capstone, download e compilazione delle
