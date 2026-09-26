@@ -208,12 +208,22 @@ distributions. Moreover, support for SUD and kprobes is out of our control and
 depends on the hardware/kernel configuration.
 
 In case the artifact reviewers would like to run the benchmarks on actual RISC-V
-hardware, then they will need download the artifact from zenodo and install the
-needed dependencies. As mentioned before, we provide scripts that assume to be
-executed on a Debian-based Linux distribution.\
-In this case, kprobes and SUD support depend on the hardware/kernel
-configuration. We cannot guarantee that results all the interception methods
-will be available on your machines.
+hardware, then they will need to download the artifact from zenodo and install
+the needed dependencies. As mentioned before, we provide scripts that assume to
+be executed on a Debian-based Linux distribution.\
+Kprobes and SUD support depend on the hardware/kernel configuration. We cannot
+guarantee that results all the interception methods will be available on your
+machines.
+
+First of all, make sure you're in your $HOME directory (`cd ~`) and download the
+script `setup_hardware_environment.sh` from zenodo
+```shell
+wget https://zenodo.org/record/10000000/files/setup_hardware_environment.sh
+```
+Then run the script to install all dependencies:
+```shell
+./setup_hardware_environment.sh
+```
 
 [//]: # (TODO: compilazione di capstone, vpoline, syscall_intercept con copia di
           CMakeLists.txt con path per capstone, download e compilazione delle

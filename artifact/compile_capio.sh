@@ -1,7 +1,7 @@
 #!/bin/bash
 
-CMAKE_VPOLINE=$HOME/vpoline/artifact/CMakeLists_vpoline.txt
-#CMAKE_SYSCALL=$HOME/vpoline/artifact/CMakeLists_syscall.txt
+CMAKE_VPOLINE=$HOME/vpoline/artifact/CMakeLists_capio_vpoline.txt
+#CMAKE_SYSCALL=$HOME/vpoline/artifact/CMakeLists_capio_syscall.txt
 LIBCAPIO_VPOLINE=$HOME/vpoline/artifact/libcapio_posix_vpoline.cpp
 #LIBCAPIO_SYSCALL=$HOME/vpoline/artifact/libcapio_posix_syscall.cpp
 CAPIO=$HOME/capio-vpoline-main
