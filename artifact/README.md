@@ -74,10 +74,14 @@ related subdirectory to generate graphs.
    with all dependencies and scripts pre-installed. If you choose the RISC-V
    hardware option, you can ignore this .qcow2 image.
 - `<test_name>_plot.py`: python scripts to generate the graph for the related
-   test. They have to be manually downloaded from Zenodo and placed
+   test. They will have to be manually placed in the directory containing the
+   results file. Instruction are provided in the
+   [Evaluating results](#evaluating-results) section.
 
 The majority of the scripts are not contained in the artifact as they are
-contained in the `vpoline` repository.
+contained in the `vpoline` repository. **However**, they will be automatically
+fetched by the artifact scripts, or they will be already present in the QEMU
+image.
 
 The full `vpoline` source code is publicly available at the linked GitHub
 repository:
@@ -85,15 +89,15 @@ https://github.com/alpha-unito/vpoline/tree/dev
 
 ## QEMU
 
-After downloading the artifact from Zenodo, you'll need to run the following
-script to install all necessary dependencies.
+Download the full artifact from Zenodo and place all the files in the same
+folder. Then you'll need to run the following script to install all necessary
+dependencies.
 ```shell
 chmod 0775 setup_qemu_environment.sh
 ./setup_qemu_environment.sh
 ```
 Then you can boot the provided Ubuntu RISC-V image by running the
-following script in the same directory where you placed the downloaded .qcow2
-image file.:
+following script:
 ```shell
 chmod 0775 start_qemu.sh
 ./start_qemu.sh
@@ -108,7 +112,7 @@ environment to boot and be ready to accept SSH connections):
 ```shell
 ssh -p 2222 ubuntu@localhost
 ```
-Use the following credentials to log in:
+You will be prompted for the password:
 * User: `ubuntu`
 * Password: `middleware`
 
@@ -126,12 +130,13 @@ Then move in the artifact directory
 ```shell
 cd ../artifact
 ```
-We can now run the 6 experiments described in the paper.\
+We can now run the 6 experiments described in the paper.
 
 **1. Patching coverage:**
 
 Make sure `~/vpoline/artifact` is your working directory.
 
+Run the following command:
 ```shell
 ./run_patching_coverage.sh
 ```
@@ -140,20 +145,23 @@ Make sure `~/vpoline/artifact` is your working directory.
 
 Make sure `~/vpoline/artifact` is your working directory.
 
+Run the following command:
 ```shell
 ./syscall_latency_bench.sh
 ```
 Now results for all methods but kprobes are recorded. Since measuring kprobes
 cannot be fully automated, an addition terminal window will be needed (or using
 `tmux` to split the screen works fine as well).\
-In the first window, run this command to start the kprobes measurement:
+In the previous window from `~/vpoline/artifact`, run this command to start the
+kprobes measurement:
 ```shell
 ../benchmark/syscall_latency ~/mw26_artifact_evaluation/syscall_latency/kprobes_syscall_latency.json 1
 ```
-It will print PID on screen, copy it and use it in the second windows to
-correctly load the kernel module. Assuming that after connecting via SSH `pwd`
-is `/home/ubuntu/` in the additional window, run the following command by
-replacing \<PID> with the PID copied from the first window:
+It will print PID on screen, copy it. In the second terminal connect via SSH as
+we did before with the first terminal (`ssh -p 2222 ubuntu@localhost`). `pwd`
+should be `/home/ubuntu/`, then run the following command by replacing \<PID>
+with the PID copied from the first
+window:
 ```shell
 cd vpoline/benchmark/kprobes/build
 sudo insmod example.ko target_pid=<PID>
@@ -206,8 +214,8 @@ run redis-server:
 #on emulated RISC-V environment
 redis-server --bind 0.0.0.0 --protected-mode no
 ```
-Then, on the host machine, make sure your working directory is where you
-downloaded `run_redis_bench.sh`, run the following command:
+Then, open another terminal window, set your working directory where you
+downloaded the artifact and run following command:
 ```shell
 #on host machine
 ./run_redis_bench.sh baseline.csv 127.0.0.1 6380
@@ -217,6 +225,8 @@ emulated RISC-V environment and repeat the process for the other interception
 methods.
 
 Vpoline
+
+Make sure `~/vpoline/artifact` is your working directory, then run
 ```shell
 #on emulated RISC-V environment
 LD_PRELOAD=../build/libvpoline.so \
@@ -228,6 +238,8 @@ redis-server --bind 0.0.0.0 --protected-mode no
 ./run_redis_bench.sh vpoline.csv 127.0.0.1 6380
 ```
 Syscall_intercept
+
+Make sure `~/vpoline/artifact` is your working directory, then run
 ```shell
 #on emulated RISC-V environment
 LD_LIBRARY_PATH=../test:../../syscall_intercept/build \
@@ -250,15 +262,16 @@ strace -o /dev/null redis-server --bind 0.0.0.0 --protected-mode no
 
 At this point all the results should be stored in QEMU inside
 `~/mw26_artifact_evaluation`. We suggest to copy the full folder to your local
-machine to generate graphs. Since results for redis are already in the host
-machine, we suggest moving them with the other results with
+machine (e.g. with `scp`) to generate graphs. Since results for redis are
+already in the host machine, we suggest moving them with the other results with
 ```shell
+#on host machine
 mkdir -p <path-to-local-copy-of>/mw26_artifact_evaluation/redis
 mv <path-to-redis-benchmark-results>/*.csv <path-to-local-copy-of>/mw26_artifact_evaluation/redis
 ```
-Then you can run `sudo poweroff` to 
-turn off the QEMU emulation and after a few seconds the first terminal that ran
-the `start_qemu.sh` script will return to the command line.
+Then you can run `sudo poweroff` to turn off the QEMU emulation and after a few
+seconds the first terminal that ran the `start_qemu.sh` script will return to
+the command line.
 
 In the downloaded artifact from Zenodo, we provide python scripts to generate
 the graph which can be compared with the ones presented in the paper. 
@@ -470,9 +483,9 @@ the paper.
 
 Experiments 2-6: the Zenodo repository contains python scripts to generate
 graphs to be compared with the ones presented in the paper. They have to be
-manually downloaded and placed in the related subdirectory of
-`<path-to-local-copy-of>/mw26_artifact_evaluation`, once you copied all the
-results. Executing them will generate the related graph as a PDF file.
+manually placed in the **related subdirectory** of
+`<path-to-local-copy-of>/mw26_artifact_evaluation`. Once you copied all the
+results, executing them will generate the related graph as a PDF file.
 
 ## Persistence
 
