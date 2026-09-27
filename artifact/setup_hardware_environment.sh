@@ -28,9 +28,9 @@ sudo apt-get install -y wget curl unzip libopenmpi-dev build-essential bison \
 
 echo "[*] Step 2: Downloading vpoline, syscall_intercept, capio and capstone 6"
 git clone https://github.com/alpha-unito/vpoline.git
-cd vpoline && git checkout dev && cd ..
+cd vpoline && git checkout 2eee0e5108af06ba28c67f781b81564b873ecdd3 && cd ..
 git clone https://github.com/GekkoFS/syscall_intercept.git
-cd syscall_intercept && git checkout riscv && cd ..
+cd syscall_intercept && git checkout f2a644ab5e9742f3d55dcc23ae6d0d0a153da491 && cd ..
 wget https://github.com/capstone-engine/capstone/archive/refs/tags/6.0.0-Alpha4.zip
 
 echo "[*] Step 3: Building capstone 6.0.0-Alpha4"
