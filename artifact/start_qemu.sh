@@ -27,7 +27,7 @@ echo "=================================================================="
 
 qemu-system-riscv64 \
     -machine virt \
-    -m 4G \
+    -m 6G \
     -smp 4 \
     -cpu rv64 \
     -nographic \

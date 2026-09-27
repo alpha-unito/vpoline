@@ -33,6 +33,7 @@ tar -xf "glibc-${GLIBC_VERSION}.tar.xz"
 mkdir -p "$OBJ_DIR"
 cd "$OBJ_DIR"
 
+export CFLAGS="-O2 -U_FORTIFY_SOURCE -fno-builtin-syslog"
 "$SRC_DIR/configure" --prefix="$PREFIX" --disable-werror --enable-shared CXX="false" libc_cv_cxx_link_ok=no
 make -j"$(nproc)"
 make install
@@ -51,7 +52,6 @@ make install
 ## Build in a separate directory (required by glibc)
 #mkdir build-${GLIBC_VERSION} && cd build-${GLIBC_VERSION}
 #
-#export CFLAGS="-O2 -U_FORTIFY_SOURCE -fno-builtin-syslog"
 #
 #../glibc-${GLIBC_VERSION}/configure \
 #  --prefix=$PREFIX \

@@ -184,6 +184,7 @@ run_vpoline_mem() {
     local samples=()
 
     rm -rf /dev/shm/* files_location*
+    export CAPIO_FILE_INIT_SIZE=2147483648
     $VPOLINE_CAPIO_SERVER_PATH -c $CAPIO_CL_CONFIG_PATH -b none > server.log &
     SERVER_PID=$!
 
@@ -232,6 +233,7 @@ run_syscall_mem() {
     local samples=()
 
     rm -rf /dev/shm/* files_location*
+    export CAPIO_FILE_INIT_SIZE=2147483648
     $SYSCALL_CAPIO_SERVER_PATH -c $CAPIO_CL_CONFIG_PATH -b none > server.log &
     SERVER_PID=$!
 
