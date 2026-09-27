@@ -9,6 +9,7 @@
 - [QEMU](#qemu)
 - [RISC-V Hardware](#risc-v-hardware)
 - [Evaluating results](#evaluating-results)
+- [Persistence](#persistence)
 
 ## Artifact description
 The artifact presented in this document allows to reproduce the tests and
@@ -472,3 +473,18 @@ graphs to be compared with the ones presented in the paper. They have to be
 manually downloaded and placed in the related subdirectory of
 `<path-to-local-copy-of>/mw26_artifact_evaluation`, once you copied all the
 results. Executing them will generate the related graph as a PDF file.
+
+## Persistence
+
+In case one day the GitHub repositories of vpoline, syscall_intercept or
+capstone will not be available, we include the zipped source code of the three
+projects in the Zenodo repository. As long as the repositories are available,
+they are **not needed** to evaluate the artifact. You can ignore:
+- `vpoline-2eee0e5108af06ba28c67f781b81564b873ecdd3.zip`
+- `syscall_intercept-f2a644ab5e9742f3d55dcc23ae6d0d0a153da491.zip`
+- `capstone-6.0.0-Alpha4.zip`
+
+as they are provided just for persistence purposes.
+Should you ever need them one day, you can just unzip them in your $HOME
+directory of the RISC-V machine and follow the path
+[RISC-V Hardware](#risc-v-hardware) to run the experiments.
