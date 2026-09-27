@@ -57,6 +57,10 @@ extern void setup_ecall(void);
 extern long syscall_no_intercept(long syscall_number, ...);
 extern long enter_syscall(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
 
+/* Bind to the plain strtol symbol, not glibc>=2.38's __isoc23_strtol,
+   so the lib also loads on older glibc. */
+extern long vp_strtol(const char *, char **, int) __asm__("strtol");
+
 uintptr_t glibc_ra;
 uintptr_t virtual_global_pointer;
 uintptr_t relocated_global_pointer;
@@ -616,7 +620,7 @@ static void rewrite_code(void)
 								}
 								{
 									int64_t from, to;
-									from = strtol(&addr[0], NULL, 16);
+									from = vp_strtol(&addr[0], NULL, 16);
 									if (from == 0) {
 										/*
 										 * this is trampoline code.
@@ -624,7 +628,7 @@ static void rewrite_code(void)
 										 */
 										break;
 									}
-									to = strtol(&addr[k + 1], NULL, 16);
+									to = vp_strtol(&addr[k + 1], NULL, 16);
 									disassemble_and_rewrite((char *) from,
 											(size_t) to - from,
 											mem_prot);
