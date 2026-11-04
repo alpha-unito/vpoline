@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2026 University of Turin
 #
@@ -12,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-#!/bin/bash
 
 CMAKE_VPOLINE=$HOME/vpoline/artifact/CMakeLists_capio_vpoline.txt
 #CMAKE_SYSCALL=$HOME/vpoline/artifact/CMakeLists_capio_syscall.txt

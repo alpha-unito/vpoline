@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2026 University of Turin
 #
@@ -13,13 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/bin/bash
+if [[ -f "overlay.qcow2" ]]; then
+    IMAGE_FILE="overlay.qcow2"
+else
+    IMAGE_FILE="ubuntu-riscv64-vpoline-artifact.qcow2"
+fi
 
-IMAGE_FILE=ubuntu-riscv64-vpoline-artifact.qcow2
-SSH_PORT=2222
+# Allow overriding ports via environment variables (e.g. REDIS_PORT=16380 ./start_qemu.sh)
+SSH_PORT="${SSH_PORT:-2222}"
+REDIS_PORT="${REDIS_PORT:-6380}"
 
 echo "=================================================================="
 echo "[*] Starting RISC-V VM in interactive console mode..."
+echo "[*] Using disk image: $IMAGE_FILE"
+echo "[*] Ports mapped -> SSH: $SSH_PORT | Redis: $REDIS_PORT"
 echo "[*] Please wait for the boot process to complete (it may take 1-2 minutes)."
 echo "[*] QEMU EMERGENCY EXIT:"
 echo "    To forcefully exit QEMU at any time: press Ctrl+a, release, then press x"
@@ -34,7 +42,7 @@ qemu-system-riscv64 \
     -bios default \
     -kernel /usr/lib/u-boot/qemu-riscv64_smode/uboot.elf \
     -drive file=$IMAGE_FILE,format=qcow2,if=virtio \
-    -netdev user,id=net0,hostfwd=tcp::$SSH_PORT-:22,hostfwd=tcp::6380-:6379 \
+    -netdev user,id=net0,hostfwd=tcp::$SSH_PORT-:22,hostfwd=tcp::"$REDIS_PORT"-:6379 \
     -device virtio-net-device,netdev=net0 \
     > qemu_output.log 2>&1 &
 

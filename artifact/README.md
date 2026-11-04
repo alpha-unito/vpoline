@@ -26,7 +26,7 @@ the paper in this case.
 
 ### Badge requests
 We are requesting for all three possible badges as we provide an artifact to
-reproduce the main results presented in the paper
+reproduce the main results presented in the paper.
 
 ### System requirements
 - Debian-based Linux distribution running on RISC-V hardware to run the
@@ -96,11 +96,20 @@ dependencies.
 chmod 0775 setup_qemu_environment.sh
 ./setup_qemu_environment.sh
 ```
+According to artifact guidelines, the following command creates an image copy so
+that the original is not modified. Each write will be performed on the copy.
+```shell
+qemu-img create -f qcow2 -F qcow2 -b ubuntu-riscv64-vpoline-artifact.qcow2 overlay.qcow2
+```
 Then you can boot the provided Ubuntu RISC-V image by running the
 following script:
 ```shell
 chmod 0775 start_qemu.sh
 ./start_qemu.sh
+#or if you want to specify a different port than 6380 for redis, run
+REDIS_PORT=<port> ./start_qemu.sh
+# remember the selected port, as you'll need to specify it when running the
+# redis benchmark
 ```
 
 To avoid window size issue within terminal, the terminal running the previous
@@ -177,7 +186,7 @@ Make sure `~/vpoline/artifact` is your working directory.
 
 Run the following command:
 ```shell
-./gp_handling_benc.sh
+./gp_handling_bench.sh
 ```
 **4. Macrobenchmark**
 
@@ -207,7 +216,10 @@ To benchmark redis, we need to run the server and the client on two different
 hosts. In this case, we suggest using the emulated RISC-V environment for the
 server and the host machine (x86_64 or aarch64) for the client.\
 The test must be run four times, one for each of the reported interception
-methods.\
+methods. Each of the four listed command to run the benchmark script specify
+port 6380, which is the default port specified by the QEMU boot script. If you
+specified another port when booting, remember to specify that port instead of
+6380 on each `run_redis_bench.sh` execution.\
 In the emulated RISC-V environment, execute the following command to natively
 run redis-server:
 ```shell
@@ -218,6 +230,7 @@ Then, open another terminal window, set your working directory where you
 downloaded the artifact and run following command:
 ```shell
 #on host machine
+chmod 0775 run_redis_bench.sh
 ./run_redis_bench.sh baseline.csv 127.0.0.1 6380
 ```
 Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
@@ -334,7 +347,7 @@ Make sure `~/vpoline/artifact` is your working directory.
 For this benchmark you need to follow the same exact steps as for the QEMU
 environment. Run:
 ```shell
-./syscall_latency_benchmark.sh
+./syscall_latency_bench.sh
 ```
 
 Now to measure kprobes latency, keep `$HOME/vpoline/artifact` as `pwd` and run:

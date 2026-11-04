@@ -1,3 +1,4 @@
+#!/bin/bash
 #
 # Copyright 2026 University of Turin
 #
@@ -12,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-#!/bin/bash
 
 VPOLINE_TEST=$HOME/vpoline/test
 SYSCALL_HOOK=$VPOLINE_TEST/intercept_sys_forward

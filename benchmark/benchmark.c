@@ -198,13 +198,13 @@ int main(int argc, char *argv[]) {
         perror("Errore: impossibile creare il file JSON per i risultati");
     }
 
-    printf("=== RISC-V zpoline benchmark ===\n\n");
+    printf("=== RISC-V vpoline benchmark ===\n\n");
 
     /* ./dummy */
     BenchResult res_dummy_native = run_benchmark("untouched dummy", DUMMY_EXE, dummy_argv, 0, 0, 0);
 
     /* LD_PRELOAD=.../libzpoline.so ./dummy */
-    BenchResult res_dummy_zpoline = run_benchmark("zpoline-intercepted dummy", DUMMY_EXE, dummy_argv, 1, 0, 0);
+    BenchResult res_dummy_zpoline = run_benchmark("vpoline-intercepted dummy", DUMMY_EXE, dummy_argv, 1, 0, 0);
 
     /* LD_PRELOAD=.../libsyscall_intercept.so ./dummy */
     BenchResult res_dummy_intercept = run_benchmark("syscall_intercept-intercepted dummy", DUMMY_EXE, dummy_argv, 0, 0, 1);
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
     BenchResult res_exe_native = run_benchmark("untouched exe", tested_exe, tested_argv, 0, 0, 0);
 
     /* LD_PRELOAD=.../libzpoline.so TESTED_EXE */
-    BenchResult res_exe_zpoline = run_benchmark("zpoline-intercepted exe", tested_exe, tested_argv, 1, 0, 0);
+    BenchResult res_exe_zpoline = run_benchmark("vpoline-intercepted exe", tested_exe, tested_argv, 1, 0, 0);
 
     /* LD_PRELOAD=.../libsyscall_intercept.so TESTED_EXE */
     BenchResult res_exe_intercept = run_benchmark("syscall_intercept-intercepted exe", tested_exe, tested_argv, 0, 0, 1);
@@ -248,22 +248,22 @@ int main(int argc, char *argv[]) {
     printf("\n=== TIME MEASUREMENTS ===\n");
     printf("\nTesting %s\n\n", tested_exe);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "untouched exe", res_exe_native.mean_ms, res_exe_native.stddev_ms);
-    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "zpoline-intercepted exe", res_exe_zpoline.mean_ms, res_exe_zpoline.stddev_ms);
+    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "vpoline-intercepted exe", res_exe_zpoline.mean_ms, res_exe_zpoline.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "syscall_intercept-intercepted exe", res_exe_intercept.mean_ms, res_exe_intercept.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "strace-intercepted exe", res_exe_strace.mean_ms, res_exe_strace.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "sud-intercepted exe", res_exe_sud.mean_ms, res_exe_sud.stddev_ms);
 
     printf("\n%-40s : %8.2f ms (std: %8.2f ms)\n", "dummy", res_dummy_native.mean_ms, res_dummy_native.stddev_ms);
-    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "zpoline-intercepted dummy", res_dummy_zpoline.mean_ms, res_dummy_zpoline.stddev_ms);
+    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "vpoline-intercepted dummy", res_dummy_zpoline.mean_ms, res_dummy_zpoline.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "syscall_intercept-intercepted dummy", res_dummy_intercept.mean_ms, res_dummy_intercept.stddev_ms);
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "sud-intercepted dummy", res_dummy_sud.mean_ms, res_dummy_sud.stddev_ms);
 
     printf("\n=== OVERHEAD ===\n");
 
     /* ZPOLINE */
-    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "zpoline init overhead", zpoline_init_overhead, zpoline_init_stddev);
-    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "zpoline exe (without init)", zpoline_exe_runtime, zpoline_exe_runtime_stddev);
-    printf("%-40s : %8.2f %%\n\n", "zpoline percentage overhead", percentage_overhead_zpoline);
+    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "vpoline init overhead", zpoline_init_overhead, zpoline_init_stddev);
+    printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "vpoline exe (without init)", zpoline_exe_runtime, zpoline_exe_runtime_stddev);
+    printf("%-40s : %8.2f %%\n\n", "vpoline percentage overhead", percentage_overhead_zpoline);
 
     /* SYSCALL_INTERCEPT */
     printf("%-40s : %8.2f ms (std: %8.2f ms)\n", "syscall_intercept init overhead", intercept_init_overhead, intercept_init_stddev);

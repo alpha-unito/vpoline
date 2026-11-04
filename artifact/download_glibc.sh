@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 #
 # Copyright 2026 University of Turin
 #
@@ -13,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/env bash
 set -euo pipefail
 
 [[ $# -ne 1 ]] && { echo "Usage: $0 <glibc_version>"; exit 1; }
