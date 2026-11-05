@@ -88,7 +88,7 @@ image.
 
 The provided QEMU image and the `setup_hardware_environment.sh` script
 respectively contain and fetch the vpoline commit
-[6a1cd7b66cf64c71ddf82ac2b5f3b90c954f951a](https://github.com/alpha-unito/vpoline/tree/6a1cd7b66cf64c71ddf82ac2b5f3b90c954f951a).
+[0662e38aae0396558a7f5929e18b8db6996bd757](https://github.com/alpha-unito/vpoline/tree/0662e38aae0396558a7f5929e18b8db6996bd757).
 The `dev` branch will be frozen after the artifact will be finalized to address
 feedback from the reviewers. However, it will surely contain a few subsequent
 commits as, for example, specifying the exact commit of vpoline which must be
@@ -518,7 +518,7 @@ In case one day the GitHub repositories of vpoline, syscall_intercept or
 capstone will not be available, we include the zipped source code of the three
 projects in the Zenodo repository. As long as the repositories are available,
 they are **not needed** to evaluate the artifact. You can ignore:
-- `vpoline-6a1cd7b66cf64c71ddf82ac2b5f3b90c954f951a.zip`
+- `vpoline-0662e38aae0396558a7f5929e18b8db6996bd757.zip`
 - `syscall_intercept-f2a644ab5e9742f3d55dcc23ae6d0d0a153da491.zip`
 - `capstone-6.0.0-Alpha4.zip`
 
