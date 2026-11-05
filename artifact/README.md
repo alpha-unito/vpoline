@@ -1,5 +1,7 @@
 # Call for Artifacts - Middleware 2026
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22979269.svg)](https://doi.org/10.5281/zenodo.22979269)
+
 ## Table of contents
 - [Artifact description](#artifact-description)
   - [Badge requests](#badge-requests)
@@ -31,13 +33,14 @@ reproduce the main results presented in the paper.
 ### System requirements
 - Debian-based Linux distribution running on RISC-V hardware to run the
   benchmarks natively, **or**
-- Debian-based Linux distribution running on x86_64 hardware to run the
-  benchmarks inside a QEMU virtual environment emulating a RISC-V machine.
+- Debian-based Linux distribution or macOS running on x86_64 or aarch64 
+  hardware to run the benchmarks inside a QEMU virtual environment emulating a
+  RISC-V machine.
 
 We provide scripts and detailed step-by-step instructions to support reviewers
 whichever option they choose. The scripts are designed to be run on a
-Debian-based Linux distribution. `sudo` access can be required to install 
-dependencies and load kernel modules.
+Debian-based Linux distribution or on macOS. `sudo` access can be required to 
+install dependencies and load kernel modules.
 
 ### Output interpretation
 Obtaining the same exact results as reported in the paper is very unlikely, as
@@ -90,10 +93,7 @@ The `dev` branch will be frozen after the artifact will be finalized to address
 feedback from the reviewers. However, it will surely contain a few subsequent
 commits as, for example, specifying the exact commit of vpoline which must be
 fetched in `setup_hardware_environment.sh` requires the commit hash to be
-known. The same applies for the Zenodo repository DOI, which will be generated
-after the final upload of the artifact. Therefore, the artifact DOI will be
-stated in the GitHub READMEs, but it cannot be included in the Zenodo README
-itself.
+known.
 
 The full `vpoline` source code is publicly available at the linked GitHub
 repository:

@@ -20,10 +20,20 @@ echo "============================================================"
 
 
 echo "[*] Step 1: Installing required packages (QEMU, wget, unzip, etc.)"
-echo "    You might be prompted for your sudo password."
-sudo apt-get update
-sudo apt-get install -y qemu-system-misc qemu-utils wget curl unzip \
-                        openssh-client opensbi u-boot-qemu
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "    Detected macOS. Installing dependencies via Homebrew..."
+    if ! command -v brew &> /dev/null; then
+        echo "[!] Error: Homebrew (brew) is required on macOS but was not found."
+        exit 1
+    fi
+    brew install qemu wget
+else
+    echo "    You might be prompted for your sudo password."
+    sudo apt-get update
+    sudo apt-get install -y qemu-system-misc qemu-utils wget curl unzip \
+                            openssh-client opensbi u-boot-qemu
+fi
 
 if ! command -v qemu-system-riscv64 &> /dev/null; then
     echo "[!] Error: qemu-system-riscv64 not found. Installation failed."

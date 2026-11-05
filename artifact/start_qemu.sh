@@ -24,6 +24,13 @@ fi
 SSH_PORT="${SSH_PORT:-2222}"
 REDIS_PORT="${REDIS_PORT:-6380}"
 
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    EDK2_FW="$(brew --prefix qemu)/share/qemu/edk2-riscv-code.fd"
+    BOOT_ARGS=(-bios default -drive file="$EDK2_FW",if=pflash,format=raw,unit=0,readonly=on)
+else
+    BOOT_ARGS=(-bios default -kernel /usr/lib/u-boot/qemu-riscv64_smode/uboot.elf)
+fi
+
 echo "=================================================================="
 echo "[*] Starting RISC-V VM in interactive console mode..."
 echo "[*] Using disk image: $IMAGE_FILE"
@@ -39,8 +46,7 @@ qemu-system-riscv64 \
     -smp 4 \
     -cpu rv64 \
     -nographic \
-    -bios default \
-    -kernel /usr/lib/u-boot/qemu-riscv64_smode/uboot.elf \
+    "${BOOT_ARGS[@]}" \
     -drive file=$IMAGE_FILE,format=qcow2,if=virtio \
     -netdev user,id=net0,hostfwd=tcp::$SSH_PORT-:22,hostfwd=tcp::"$REDIS_PORT"-:6379 \
     -device virtio-net-device,netdev=net0 \
