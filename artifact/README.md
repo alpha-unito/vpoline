@@ -1,6 +1,6 @@
 # Call for Artifacts - Middleware 2026
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23976981.svg)](https://doi.org/10.5281/zenodo.23976981)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24162132.svg)](https://doi.org/10.5281/zenodo.24162132)
 
 ## Table of contents
 - [Artifact description](#artifact-description)
@@ -87,13 +87,12 @@ fetched by the artifact scripts, or they will be already present in the QEMU
 image.
 
 The provided QEMU image and the `setup_hardware_environment.sh` script
-respectively contain and fetch the vpoline commit
-[0662e38aae0396558a7f5929e18b8db6996bd757](https://github.com/alpha-unito/vpoline/tree/0662e38aae0396558a7f5929e18b8db6996bd757).
-The `dev` branch will be frozen after the artifact will be finalized to address
-feedback from the reviewers. However, it will surely contain a few subsequent
-commits as, for example, specifying the exact commit of vpoline which must be
-fetched in `setup_hardware_environment.sh` requires the commit hash to be
-known.
+respectively contain and fetch the vpoline release tagged as
+[artifact-middleware26](https://github.com/alpha-unito/vpoline/tree/artifact-middleware26).
+The `dev` branch will be merged into `main` after the artifact will be finalized
+to address feedback from the reviewers. However, we have permanently tagged the
+exact state of the repository used for this evaluation to ensure long-term
+reproducibility, regardless of future commits.
 
 The full `vpoline` source code is publicly available at the linked GitHub
 repository:
@@ -518,7 +517,7 @@ In case one day the GitHub repositories of vpoline, syscall_intercept or
 capstone will not be available, we include the zipped source code of the three
 projects in the Zenodo repository. As long as the repositories are available,
 they are **not needed** to evaluate the artifact. You can ignore:
-- `vpoline-0662e38aae0396558a7f5929e18b8db6996bd757.zip`
+- `vpoline-artifact-middleware26.zip`
 - `syscall_intercept-f2a644ab5e9742f3d55dcc23ae6d0d0a153da491.zip`
 - `capstone-6.0.0-Alpha4.zip`
 
