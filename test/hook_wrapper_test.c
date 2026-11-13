@@ -68,13 +68,6 @@ static long hook_function(long syscall_number, long a0, long a1,
         char buf[128];
         sprintf(buf, "output from hook_function: syscall number %ld\n", syscall_number);
         syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
-        // if (current_test_idx_ptr < MAX_TESTS) {
-        //     if (tracker[current_test_idx].matched == 0) {
-        //         if (syscall_number == tracker[current_test_idx].expected_sys_nr) {
-        //             tracker[current_test_idx].matched = 1;
-        //         }
-        //     }
-        // }
         if (current_test_idx_ptr && *current_test_idx_ptr < MAX_TESTS) {
             int idx = *current_test_idx_ptr;
             if (tracker_ptr[idx].matched == 0) {
