@@ -388,6 +388,17 @@ struct wrapper_ret syscall_hook(int64_t a0, int64_t a1,
             return (struct wrapper_ret) { .a[0] = a0, .a[1] = 2 };
         }
 #endif
+        switch (a7) {
+            case SYS_clone:
+#ifdef SYS_clone3
+            case SYS_clone3:
+#endif
+                result = syscall_no_intercept(a7, a0, a1, a2, a3, a4, a5);
+                post_clone_hook(result);
+                return (struct wrapper_ret) { .a[0] = result, .a[1] = 1 };
+            default:
+                break;
+        }
         return (struct wrapper_ret) { .a[0] = a0, .a[1] = 0 };
     } else {
         return (struct wrapper_ret) { .a[0] = result, .a[1] = 1 };
