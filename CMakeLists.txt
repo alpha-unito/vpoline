@@ -56,6 +56,7 @@ set(VPOLINE_SOURCES
         src/utils.c
         src/patcher.c
         src/sigsegv_handler.c
+        src/gp_fault_handler.c
 )
 
 add_library(vpoline SHARED ${VPOLINE_SOURCES})
@@ -88,7 +89,13 @@ if (BUILD_TESTS)
     # you should add test names here; CMake expects test source files to be
     # named <test_name>_test.c and hook libraries to be named hook_<test_name>_test.c
     set(TESTS
+            clone
             fcntl
+            fork
+            mkdirat
+            openat
+            read
+            statx
             write
     )
 
@@ -115,4 +122,71 @@ if (BUILD_TESTS)
         endif()
     endforeach()
 
+    set(GP_TEST_EXE "gp_test")
+
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/${GP_TEST_EXE}.c")
+        add_executable(${GP_TEST_EXE} test/${GP_TEST_EXE}.c)
+        set_target_properties(${GP_TEST_EXE} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+        target_compile_options(${GP_TEST_EXE} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+        target_link_options(${GP_TEST_EXE} PRIVATE "-no-pie")
+
+        add_test(NAME gp_test COMMAND ${GP_TEST_EXE})
+
+        set_tests_properties(gp_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+    endif()
+
+    set(STW_TEST_EXE "stw_test")
+        add_executable(${STW_TEST_EXE} test/${STW_TEST_EXE}.c)
+        set_target_properties(${STW_TEST_EXE} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+        target_compile_options(${STW_TEST_EXE} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+        target_link_options(${STW_TEST_EXE} PRIVATE "-no-pie")
+
+        add_test(NAME stw_test COMMAND ${STW_TEST_EXE})
+
+        set_tests_properties(stw_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+
+    set(ECALL_DETECTOR_EXE "ecall_detector")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/${ECALL_DETECTOR_EXE}.c")
+        add_executable(${ECALL_DETECTOR_EXE} test/${ECALL_DETECTOR_EXE}.c)
+
+        target_include_directories(${ECALL_DETECTOR_EXE} PRIVATE
+                ${capstone_SOURCE_DIR}/include
+        )
+
+        target_link_libraries(${ECALL_DETECTOR_EXE} PRIVATE
+                capstone
+        )
+
+        set_property(TARGET ${ECALL_DETECTOR_EXE} APPEND PROPERTY BUILD_RPATH "${capstone_BINARY_DIR}")
+        set_property(TARGET ${ECALL_DETECTOR_EXE} APPEND PROPERTY INSTALL_RPATH "${capstone_BINARY_DIR}")
+
+        add_test(NAME no_ecall_test COMMAND ${ECALL_DETECTOR_EXE})
+
+        set_tests_properties(no_ecall_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+    endif()
+
 endif ()
+
+##########################
+# Benchmark Compilation  #
+##########################
+
+set(GP_BENCHMARK_BULK "gp_benchmark_bulk")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/${GP_BENCHMARK_BULK}.c")
+    add_executable(${GP_BENCHMARK_BULK} benchmark/${GP_BENCHMARK_BULK}.c)
+
+    set_target_properties(${GP_BENCHMARK_BULK} PROPERTIES POSITION_INDEPENDENT_CODE OFF)
+    target_compile_options(${GP_BENCHMARK_BULK} PRIVATE "-fno-PIE" "-msmall-data-limit=8")
+    target_link_options(${GP_BENCHMARK_BULK} PRIVATE "-no-pie" "-Wl,-z,separate-code")
+
+#    target_link_libraries(${GP_BENCHMARK_BULK} PRIVATE m)
+endif()
+
+set(GP_BENCHMARK_MASTER "gp_benchmark_bulk_master")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/benchmark/${GP_BENCHMARK_MASTER}.c")
+    add_executable(${GP_BENCHMARK_MASTER} benchmark/${GP_BENCHMARK_MASTER}.c)
+    target_link_libraries(${GP_BENCHMARK_MASTER} PRIVATE m)
+endif()

@@ -1,0 +1,527 @@
+# Call for Artifacts - Middleware 2026
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24162132.svg)](https://doi.org/10.5281/zenodo.24162132)
+
+## Table of contents
+- [Artifact description](#artifact-description)
+  - [Badge requests](#badge-requests)
+  - [System requirements](#system-requirements)
+  - [Output interpretation](#output-interpretation)
+  - [Artifact Content](#artifact-content)
+- [QEMU](#qemu)
+- [RISC-V Hardware](#risc-v-hardware)
+- [Evaluating results](#evaluating-results)
+- [Persistence](#persistence)
+
+## Artifact description
+The artifact presented in this document allows to reproduce the tests and
+benchmarks presented in section 5 of the paper "Exhaustive System Call
+Interception on RISC-V". Scripts are provided to automatize the full process as
+much as possible. Two options are provided:
+- Run the test suite inside a [RISC-V virtual environment emulated by
+Qemu](#qemu).
+- Run the test suite on [actual RISC-V hardware](#risc-v-hardware).
+
+Access to a machine supporting all the tested interception technologies can be
+provided if the reviewers think that's necessary. Please contact the authors of
+the paper in this case.
+
+### Badge requests
+We are requesting for all three possible badges as we provide an artifact to
+reproduce the main results presented in the paper.
+
+### System requirements
+- Debian-based Linux distribution running on RISC-V hardware to run the
+  benchmarks natively, **or**
+- Debian-based Linux distribution or macOS running on x86_64 or aarch64 
+  hardware to run the benchmarks inside a QEMU virtual environment emulating a
+  RISC-V machine.
+
+We provide scripts and detailed step-by-step instructions to support reviewers
+whichever option they choose. The scripts are designed to be run on a
+Debian-based Linux distribution or on macOS. `sudo` access can be required to 
+install dependencies and load kernel modules.
+
+### Output interpretation
+Obtaining the same exact results as reported in the paper is very unlikely, as
+different machines and kernel versions can lead to different results. Moreover,
+some methods such as kprobes and SUD are not supported by default, so
+guaranteeing that all interception methods will be available on possible
+reviewers' machines is out of our control. That is why we provide instruction
+for a virtual and tested environment. Time measurements on an emulation
+will not be directly comparable with the ones obtained on actual hardware, but
+they are still meaningful to compare the different interception methods and
+evaluate how they perform against each other.
+
+At the end of the experiment, majority of results will be grouped in dedicated
+folders inside of `~/mw26_artifact_evaluation`, both that you opted for QEMU or
+actual RISC-V hardware. The results for the redis benchmark will be stored in
+the host machine instead, in the same directory where you ran
+`run_redis_bench.sh`.
+We suggest copying to your host machine the full `~/mw26_artifact_evaluation`,
+creating a subdirectory `redis/` and grouping the redis-related CSVs there.
+The provided python scripts can be downloaded from Zenodo and placed in the
+related subdirectory to generate graphs.
+
+### Artifact Content
+
+- `capio-vpoline-main.zip`: CAPIO source code using vpoline as intercepting
+   library. If you choose the QEMU option, you can ignore this .zip.
+- `setup_qemu_environment.sh`: script to install all dependencies needed to run
+   the QEMU virtual environment.
+- `start_qemu.sh`: script to start the QEMU virtual environment.
+- `setup_hardware_environment.sh`: script to install all dependencies needed to
+   run the benchmarks on actual RISC-V hardware.
+- `run_redis_bench.sh`: script to run the redis benchmark on the host machine.
+- `ubuntu-riscv64-vpoline-artifact.qcow2`: QEMU image of Ubuntu 24.04 RISC-V
+   with all dependencies and scripts pre-installed. If you choose the RISC-V
+   hardware option, you can ignore this .qcow2 image.
+- `<test_name>_plot.py`: python scripts to generate the graph for the related
+   test. They will have to be manually placed in the directory containing the
+   results file. Instruction are provided in the
+   [Evaluating results](#evaluating-results) section.
+
+The majority of the scripts are not contained in the artifact as they are
+contained in the `vpoline` repository. **However**, they will be automatically
+fetched by the artifact scripts, or they will be already present in the QEMU
+image.
+
+The provided QEMU image and the `setup_hardware_environment.sh` script
+respectively contain and fetch the vpoline release tagged as
+[artifact-middleware26](https://github.com/alpha-unito/vpoline/tree/artifact-middleware26).
+The `dev` branch will be merged into `main` after the artifact will be finalized
+to address feedback from the reviewers. However, we have permanently tagged the
+exact state of the repository used for this evaluation to ensure long-term
+reproducibility, regardless of future commits.
+
+The full `vpoline` source code is publicly available at the linked GitHub
+repository:
+https://github.com/alpha-unito/vpoline/tree/dev
+
+## QEMU
+
+Download the full artifact from Zenodo and place all the files in the same
+folder. Then you'll need to run the following script to install all necessary
+dependencies.
+```shell
+chmod 0775 setup_qemu_environment.sh
+./setup_qemu_environment.sh
+```
+According to artifact guidelines, the following command creates an image copy so
+that the original is not modified. Each write will be performed on the copy.
+```shell
+qemu-img create -f qcow2 -F qcow2 -b ubuntu-riscv64-vpoline-artifact.qcow2 overlay.qcow2
+```
+Then you can boot the provided Ubuntu RISC-V image by running the
+following script:
+```shell
+chmod 0775 start_qemu.sh
+./start_qemu.sh
+#or if you want to specify a different port than 6380 for redis, run
+REDIS_PORT=<port> ./start_qemu.sh
+# remember the selected port, as you'll need to specify it when running the
+# redis benchmark
+```
+
+To avoid window size issue within terminal, the terminal running the previous
+script will just run the QEMU emulation without command line interaction.
+To actually use the virtual environment you'll need to open a new terminal and
+connect to the QEMU instance via SSH. The following command can be used to
+connect to the virtual environment (a few minutes may be needed for the virtual
+environment to boot and be ready to accept SSH connections):
+```shell
+ssh -p 2222 ubuntu@localhost
+```
+You will be prompted for the password:
+* User: `ubuntu`
+* Password: `middleware`
+
+Make sure your `pwd` is `$HOME`. All dependencies and scripts to run the
+experiments are ready to use inside `~/vpoline/artifact`.
+
+First of all, `vpoline` has to be compiled:
+```shell
+cd vpoline
+mkdir build && cd build
+cmake ..
+make -j$(nproc)
+```
+Then move in the artifact directory
+```shell
+cd ../artifact
+```
+We can now run the 6 experiments described in the paper.
+
+**1. Patching coverage:**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./run_patching_coverage.sh
+```
+
+**2. Syscall latency benchmark:**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./syscall_latency_bench.sh
+```
+Now results for all methods but kprobes are recorded. Since measuring kprobes
+cannot be fully automated, an addition terminal window will be needed (or using
+`tmux` to split the screen works fine as well).\
+In the previous window from `~/vpoline/artifact`, run this command to start the
+kprobes measurement:
+```shell
+../benchmark/syscall_latency ~/mw26_artifact_evaluation/syscall_latency/kprobes_syscall_latency.json 1
+```
+It will print PID on screen, copy it. In the second terminal connect via SSH as
+we did before with the first terminal (`ssh -p 2222 ubuntu@localhost`). `pwd`
+should be `/home/ubuntu/`, then run the following command by replacing \<PID>
+with the PID copied from the first
+window:
+```shell
+cd vpoline/benchmark/kprobes/build
+sudo insmod example.ko target_pid=<PID>
+```
+After that just press `Enter` in the first window to start the measurement.\
+Once the measurement is completed, remember to unload the kernel module by
+running `sudo rmmod example` (it's not relevant on which terminal). You can run
+`exit` on the second terminal to close it.
+
+**3. GP-fault handling benchmark:**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./gp_handling_bench.sh
+```
+**4. Macrobenchmark**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./macrobenchmark.sh
+```
+Please note that we reduced the number of iterations to 5 for each interception
+method just to present a minimal stats set and a proof of correct execution.
+The results discussed in the paper were obtained out of 1000 iterations, which
+would take several hours on actual RISC-V hardware.
+
+**5. CAPIO**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./capio_launch_bench.sh
+```
+
+**6. Redis**
+
+To benchmark redis, we need to run the server and the client on two different
+hosts. In this case, we suggest using the emulated RISC-V environment for the
+server and the host machine (x86_64 or aarch64) for the client.\
+The test must be run four times, one for each of the reported interception
+methods. Each of the four listed command to run the benchmark script specify
+port 6380, which is the default port specified by the QEMU boot script. If you
+specified another port when booting, remember to specify that port instead of
+6380 on each `run_redis_bench.sh` execution.\
+In the emulated RISC-V environment, execute the following command to natively
+run redis-server:
+```shell
+#on emulated RISC-V environment
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+Then, open another terminal window, set your working directory where you
+downloaded the artifact and run following command:
+```shell
+#on host machine
+chmod 0775 run_redis_bench.sh
+./run_redis_bench.sh baseline.csv 127.0.0.1 6380
+```
+Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
+emulated RISC-V environment and repeat the process for the other interception
+methods.
+
+Vpoline
+
+Make sure `~/vpoline/artifact` is your working directory, then run
+```shell
+#on emulated RISC-V environment
+LD_PRELOAD=../build/libvpoline.so \
+LIBVPHOOK=../test/hook_forward.so \
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh vpoline.csv 127.0.0.1 6380
+```
+Syscall_intercept
+
+Make sure `~/vpoline/artifact` is your working directory, then run
+```shell
+#on emulated RISC-V environment
+LD_LIBRARY_PATH=../test:../../syscall_intercept/build \
+LD_PRELOAD=../test/intercept_sys_forward.so \
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh syscall_intercept.csv 127.0.0.1 6380
+```
+Strace
+```shell
+#on emulated RISC-V environment
+strace -o /dev/null redis-server --bind 0.0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh strace.csv 127.0.0.1 6380
+```
+
+At this point all the results should be stored in QEMU inside
+`~/mw26_artifact_evaluation`. We suggest to copy the full folder to your local
+machine (e.g. with `scp`) to generate graphs. Since results for redis are
+already in the host machine, we suggest moving them with the other results with
+```shell
+#on host machine
+mkdir -p <path-to-local-copy-of>/mw26_artifact_evaluation/redis
+mv <path-to-redis-benchmark-results>/*.csv <path-to-local-copy-of>/mw26_artifact_evaluation/redis
+```
+Then you can run `sudo poweroff` to turn off the QEMU emulation and after a few
+seconds the first terminal that ran the `start_qemu.sh` script will return to
+the command line.
+
+In the downloaded artifact from Zenodo, we provide python scripts to generate
+the graph which can be compared with the ones presented in the paper. 
+[Instructions are at the bottom](#evaluating-results) of this README file.
+
+
+## RISC-V Hardware
+
+**Disclaimer**: as mentioned, we provide scripts supporting Debian-based Linux
+distributions. Moreover, support for SUD and kprobes is out of our control and
+depends on the hardware/kernel configuration.
+
+In case the artifact reviewers would like to run the benchmarks on actual RISC-V
+hardware, then they will need to download the artifact from Zenodo and install
+the needed dependencies. As mentioned before, we provide scripts that assume to
+be executed on a Debian-based Linux distribution.\
+Kprobes and SUD support depend on the hardware/kernel configuration. We cannot
+guarantee that results all the interception methods will be available on your
+machines.\
+We can provide access to a tested machine with an upstream kernel
+supporting all the interception methods. Please contact the authors of the paper
+in this case.
+
+First of all, download the script `setup_hardware_environment.sh` from Zenodo.
+We suggest to download it on your host x86_64 machine, then copying it to the
+RISC-V machine in your $HOME directory.
+The files you'll need to copy on the RISC-V machines are:
+- `setup_hardware_environment.sh`
+- `capio-vpoline-main.zip`
+
+Then, once you moved the script on in your $HOME directory on the RISC-V machine,
+run the script to install all dependencies:
+```shell
+chmod 0775 setup_hardware_environment.sh
+./setup_hardware_environment.sh
+```
+Change working directory with `cd $HOME/vpoline/artifact`. Here all the scripts
+are contained. Now you can start running the experiments.
+
+**1. Patching coverage**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+First you need to download and compile some different versions of the glibc.
+Depending on the speed of the machine, this could take more than one hour.
+```shell
+./download_glibc.sh 2.37
+./download_glibc.sh 2.39
+./download_glibc.sh 2.41
+./download_glibc.sh 2.43
+```
+After all glibc are built, you can run the patching coverage test:
+```shell
+./run_patching_coverage.sh
+```
+**2. Syscall latency benchmark**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+For this benchmark you need to follow the same exact steps as for the QEMU
+environment. Run:
+```shell
+./syscall_latency_bench.sh
+```
+
+Now to measure kprobes latency, keep `$HOME/vpoline/artifact` as `pwd` and run:
+```shell
+../benchmark/syscall_latency ~/mw26_artifact_evaluation/syscall_latency/kprobes_syscall_latency.json 1
+```
+It will print a PID on screen. Copy it and in a new terminal window and from
+your $HOME directory run the following commands to load the kernel module. You
+need to replace \<PID> with the PID copied from the first window:
+```shell
+cd vpoline/benchmark/kprobes/build
+sudo insmod example.ko target_pid=<PID>
+```
+You can now press `Enter` on the other terminal where the test is waiting after
+the PID was printed. Remember to unload the kernel module with `sudo rmmod
+example` after the test is completed.
+
+**Disclaimer:** please remember that **kprobes** and **SUD** support depend on the
+machine kernel. We cannot guarantee that results for all the interception
+methods will be available.
+
+**3. GP-fault handling benchmark**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./gp_handling_bench.sh
+```
+
+**4. Macrobenchmark**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Run the following command:
+```shell
+./macrobenchmark.sh
+```
+Please note that we reduced the number of iterations to 5 for each interception
+method just to present a minimal stats set and a proof of correct execution.
+The results discussed in the paper were obtained out of 1000 iterations, which
+would take several hours on actual RISC-V hardware.
+
+**5. CAPIO**
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+Extract the CAPIO source code from the provided .zip you copied in your $HOME
+before step 1:
+```shell
+unzip capio-vpoline-main.zip
+```
+
+Then to compile CAPIO run:
+```shell
+./compile_capio.sh
+```
+Now you can run the benchmark:
+```shell
+./capio_launch_bench.sh
+```
+
+**6. Redis**
+
+To benchmark redis, we need to run the server and the client on two different
+hosts. In this case, the server must run on the RISC-V machine while the host
+machine (x86_64 or aarch64) will run the client which will generate reports.
+The test must be run four times, one for each of the reported interception
+methods.
+
+Make sure `~/vpoline/artifact` is your working directory.
+
+We need to compile the hooks forwarding the system call to the kernel:
+```shell
+./compile_redis_hooks.sh
+```
+When launching the benchmarking script on the host machine, you need to replace
+\<ip-address-of-riscv-machine> with the actual IP address of the RISC-V machine.
+You can find it by running `ip a` on the RISC-V machine.
+
+On the RISC-V machine, execute the following command to natively run
+redis-server:
+```shell
+#on RISC-V machine
+redis-server --bind 0.0.0.0 --protected-mode no
+```
+Then, on the host machine, wherever you downloaded artifact files, run:
+```shell
+#on host machine
+./run_redis_bench.sh baseline.csv <ip-address-of-riscv-machine>
+```
+Wait for the host machine terminated, then `Ctrl+C` the redis-server on the
+RISC-V machine and repeat the process for the other interception methods.
+
+On the RISC-V machine you'll have to keep staying in `$HOME/vpoline/artifact`.
+
+Vpoline
+```shell
+#on RISC-V machine
+LD_PRELOAD=../build/libvpoline.so \
+LIBVPHOOK=../test/hook_forward.so \
+redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh vpoline.csv <ip-address-of-riscv-machine>
+```
+Syscall_intercept
+```shell
+#on RISC-V machine
+LD_LIBRARY_PATH=../test:../../syscall_intercept/build \
+LD_PRELOAD=../test/intercept_sys_forward.so \
+redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh syscall_intercept.csv <ip-address-of-riscv-machine>
+```
+Strace
+```shell
+#on RISC-V machine
+strace -o /dev/null redis-server --bind 0.0.0 --protected-mode no
+```
+```shell
+#on host machine
+./run_redis_bench.sh strace.csv <ip-address-of-riscv-machine>
+```
+
+Now all benchmarks should be completed. Please, copy the full
+`~/mw26_artifact_evaluation` folder to your host machine, and then create a
+subdirectory called `redis/` and move the redis-related CSVs there as they are
+already stored in the host machine.
+
+## Evaluating results
+
+After executing all the experiments, results will be stored in the
+`~/mw26_artifact_evaluation` directory (both that you ran them on QEMU or actual
+RISC-V hardware), except the redis results files which are now stored wherever
+you executed `run_redis_bench.sh`. As mentioned before, we suggest copying the
+full folder to your host machine, creating a subdirectory called `redis/` and
+moving the redis-related CSVs there.
+
+Experiment 1 does not require any graph generation. Results can be evaluated
+by inspecting the generated reports and comparing them with results presented in
+the paper.
+
+Experiments 2-6: the Zenodo repository contains python scripts to generate
+graphs to be compared with the ones presented in the paper. They have to be
+manually placed in the **related subdirectory** of
+`<path-to-local-copy-of>/mw26_artifact_evaluation`. Once you copied all the
+results, executing them will generate the related graph as a PDF file.
+
+## Persistence
+
+In case one day the GitHub repositories of vpoline, syscall_intercept or
+capstone will not be available, we include the zipped source code of the three
+projects in the Zenodo repository. As long as the repositories are available,
+they are **not needed** to evaluate the artifact. You can ignore:
+- `vpoline-artifact-middleware26.zip`
+- `syscall_intercept-f2a644ab5e9742f3d55dcc23ae6d0d0a153da491.zip`
+- `capstone-6.0.0-Alpha4.zip`
+
+as they are provided just for persistence purposes.
+Should you ever need them one day, you can just unzip them in your $HOME
+directory of the RISC-V machine and follow the path
+[RISC-V Hardware](#risc-v-hardware) to run the experiments.

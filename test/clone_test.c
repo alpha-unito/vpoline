@@ -2,25 +2,29 @@
 #define _GNU_SOURCE
 #endif
 
+#include <assert.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
 #include <sched.h>
+#include <bits/signum-arch.h>
+#include <sys/wait.h>
 
 int child_func(void *arg) {
-    pid_t ppid = *(pid_t *)arg;
-    pid_t child_pid = getpid();
-    printf("Child pid = %d, parent pid = %d\n", child_pid, ppid);
+    int fd = openat(AT_FDCWD, "testfile.txt", O_RDONLY);
+    char buf[128];
+    int n = read(fd, buf, sizeof(buf));
+    buf[n] = '\0';
+    n = atoi(buf);
+    assert(n == getpid());
     return 0;
 }
 
 int main() {
     char child_stack[8192];
     pid_t ppid = getpid();
-    printf("Parent pid = %d\n", ppid);
     pid_t pid = clone(child_func, child_stack + sizeof(child_stack),
                         SIGCHLD, &ppid);
 
@@ -29,7 +33,6 @@ int main() {
         return 1;
     }
 
-    printf("Parent waiting for child exit...\n");
 
     int status;
     wait(&status);
@@ -38,7 +41,12 @@ int main() {
         return 1;
     }
 
-    printf("Child thread terminated successfully\n");
+    char buf[128];
+    int fd = openat(AT_FDCWD, "testfile2.txt", O_RDONLY);
+    int n = read(fd, buf, sizeof(buf));
+    buf[n] = '\0';
+    n = atoi(buf);
+    assert(n == ppid);
 
     return 0;
 }

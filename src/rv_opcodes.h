@@ -17,8 +17,6 @@
 #ifndef RISCVPOLINE_RV_OPCODES_H
 #define RISCVPOLINE_RV_OPCODES_H
 
-// TODO: add A extension instructions opcodes and funct3 fields
-
 /*
  * Here opcode e funct3 fields for each existing RISC-V instruction accessing
  * memory both for reading and writing are listed accordingly to the RISC-V
@@ -75,6 +73,23 @@
 #define C_SWSP_FUNCT3   0x6
 #define C_SDSP_FUNCT3   0x7
 
+
+#define AMO_OPCODE  0x2f
+
+#define AMO_W_FUNCT3   0x2
+#define AMO_D_FUNCT3   0x3
+
+#define AMOADD_FUNCT5   0x00
+#define AMOSWAP_FUNCT5  0x01
+#define AMOLR_FUNCT5    0x02
+#define AMOSC_FUNCT5    0x03
+#define AMOXOR_FUNCT5   0x04
+#define AMOOR_FUNCT5    0x08
+#define AMOAND_FUNCT5   0x0c
+#define AMOMIN_FUNCT5   0x10
+#define AMOMAX_FUNCT5   0x14
+#define AMOMINU_FUNCT5  0x18
+#define AMOMAXU_FUNCT5  0x1c
 
 /*
  * Non SP-relative compressed instructions (0x00 opcode) encode registers in 3

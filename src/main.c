@@ -45,6 +45,8 @@
 #include <inttypes.h>
 #include <capstone/capstone.h>
 #include <linux/limits.h>
+#include <linux/sched.h>
+#include <stdatomic.h>
 
 #include "main.h"
 #include "utils.h"
@@ -52,16 +54,25 @@
 #include "sigsegv_handler.h"
 
 extern void setup_ecall(void);
-extern long syscall_no_intercept(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+extern long syscall_no_intercept(long syscall_number, ...);
 extern long enter_syscall(int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t);
+
+/* Bind to the plain strtol symbol, not glibc>=2.38's __isoc23_strtol,
+   so the lib also loads on older glibc. */
+extern long vp_strtol(const char *, char **, int) __asm__("strtol");
 
 uintptr_t glibc_ra;
 uintptr_t virtual_global_pointer;
 uintptr_t relocated_global_pointer;
+extern struct sigaction user_sigsegv_act;
+extern bool user_sigsegv_registered;
 
 size_t page_size;
 
 ReturnSequenceInfo rsi;
+
+pid_t active_tids[MAX_THREADS];
+atomic_flag tid_list_lock = ATOMIC_FLAG_INIT;
 
 void ____asm_impl(void)
 {
@@ -85,7 +96,24 @@ void ____asm_impl(void)
 	asm volatile (
 		".globl asm_syscall_hook \n\t"
 		"asm_syscall_hook: \n\t"
+        /*
+         * t2 is momentarily clobbered by the trampoline, then we can use it
+         * as a flag to check if we are executing the post-clone path or not.
+         * If t2 == 0 then we are on the regular path -> syscall_hook
+         * If t2 == 1 then we are on the post-clone path -> post_clone_hook
+         */
+		"li t2, 0 \n\t"
+		"j bybass_post_clone_path \n\t"
 
+		"post_clone_path: \n\t"
+		"addi sp, sp, -304 \n\t"
+		"sd t0, 0(sp) \n\t"
+		"sd t1, 8(sp) \n\t"
+		"sd t2, 16(sp) \n\t"
+		"sd t3, 24(sp) \n\t"
+		"li t2, 1 \n\t"
+
+        "bybass_post_clone_path: \n\t"
 		/*
 		 * store &glibc_ra on the stack
 		 */
@@ -152,8 +180,15 @@ void ____asm_impl(void)
 		 */
 		"mv a6, t1 \n\t" // needed for future check
 
-		"call syscall_hook@plt \n\t"
+		"bnez t2, l0 \n\t"
 
+		"call syscall_hook@plt \n\t"
+        "j l1 \n\t"
+
+		"l0: \n\t"
+		"call post_clone_hook@plt \n\t"
+
+		"l1: \n\t"
 		/*
 		 * Now a1 contains 0 or 1, and such value will be passed to t0 as it's
 		 * already clobbered while a1 must be restored:
@@ -211,7 +246,9 @@ void ____asm_impl(void)
         "beqz t0, return_prelude \n\t"
         "srli t0, t0, 1 \n\t"
         "beqz t0, handled_ecall \n\t"
-        "ebreak \n\t" // t0 should be 0 or 1; any other value means error
+        "srli t0, t0, 1 \n\t"
+        "beqz t0, do_post_clone \n\t"
+        "ebreak \n\t" // t0 should be 0, 1 or 2; any other value means error
 
 		/*
 		 * t0 will be restored in the return path encoded by setup_return() in
@@ -247,6 +284,13 @@ void ____asm_impl(void)
         "addi t0, t0, -20 \n\t"
         "jalr zero, t0, 0 \n\t"
 
+        "do_post_clone: \n\t"
+        "ld gp, 288(sp) \n\t"
+        "ld t0, 0(sp) \n\t"
+        "addi sp, sp, 304 \n\t"
+        "ecall \n\t"
+        "j post_clone_path \n\t"
+
 		/*
 		 * We do not want to intercept rt_sigreturn, then we just need to let
 		 * the kernel normally handle this system call. However, we still need
@@ -264,8 +308,32 @@ void ____asm_impl(void)
 
 typedef int (*hook_fn_t)(long syscall_numer, long a0, long a1, long a2, long a3,
     long a4, long a5, long *result);
+typedef void (*post_clone_hook_fn_child_t)(void);
+typedef void (*post_clone_hook_fn_parent_t)(long a0);
 
 static hook_fn_t hook_fn = NULL;
+static post_clone_hook_fn_child_t post_clone_hook_fn_child = NULL;
+static post_clone_hook_fn_parent_t post_clone_hook_fn_parent = NULL;
+
+struct wrapper_ret post_clone_hook(int64_t a0)
+{
+    if (a0 == 0) {
+        if (post_clone_hook_fn_child != NULL)
+            post_clone_hook_fn_child();
+    } else {
+    	while (atomic_flag_test_and_set_explicit(&tid_list_lock, memory_order_acquire));
+    	for (int i = 0; i < MAX_THREADS; i++) {
+    		if (active_tids[i] == 0) {
+    			active_tids[i] = (pid_t)a0;
+    			break;
+    		}
+    	}
+    	atomic_flag_clear_explicit(&tid_list_lock, memory_order_release);
+        if (post_clone_hook_fn_parent != NULL)
+            post_clone_hook_fn_parent(a0);
+    }
+    return (struct wrapper_ret) { .a[0] = a0, .a[1] = 1 };
+}
 
 struct wrapper_ret syscall_hook(int64_t a0, int64_t a1,
 		  int64_t a2, int64_t a3,
@@ -273,6 +341,36 @@ struct wrapper_ret syscall_hook(int64_t a0, int64_t a1,
 		  int64_t a6_ra, // a6 contains return address to jump after patched ecall
 		  int64_t a7)
 {
+
+    /*
+     * If the targeted executable is trying to register a custom SIGSEGV
+     * handler which would replace the VPOLINE handler, then we store the
+     * pointer to the user-defined handler aside and we trick the executable
+     * into thinking that the registration was successful. In this way, we can
+     * keep the gp-caused fault handling active and we can still forward the
+     * signal to the user-defined handler whenever gp is not the cause.
+     */
+    if (a7 == SYS_rt_sigaction && a0 == SIGSEGV) {
+        const struct sigaction *act = (const struct sigaction *)a1;
+        struct sigaction *oldact = (struct sigaction *)a2;
+
+        if (oldact != NULL) {
+            if (user_sigsegv_registered) {
+                *oldact = user_sigsegv_act;
+            } else {
+                memset(oldact, 0, sizeof(*oldact));
+                oldact->sa_handler = SIG_DFL;
+            }
+        }
+
+        if (act != NULL) {
+            user_sigsegv_act = *act;
+            user_sigsegv_registered = true;
+        }
+
+        return (struct wrapper_ret) { .a[0] = 0, .a[1] = 1 };
+    }
+
     long result;
     if (hook_fn == NULL) {
         return (struct wrapper_ret) {
@@ -281,6 +379,26 @@ struct wrapper_ret syscall_hook(int64_t a0, int64_t a1,
     }
     const bool forward_to_kernel = hook_fn(a7, a0, a1, a2, a3, a4, a5, &result);
     if (forward_to_kernel) {
+
+        if (a7 == SYS_clone && a1 != 0) {
+            return (struct wrapper_ret) { .a[0] = a0, .a[1] = 2 };
+        }
+#ifdef SYS_clone3
+        else if (a7 == SYS_clone3 && ((struct clone_args *)a0)->stack != 0) {
+            return (struct wrapper_ret) { .a[0] = a0, .a[1] = 2 };
+        }
+#endif
+        switch (a7) {
+            case SYS_clone:
+#ifdef SYS_clone3
+            case SYS_clone3:
+#endif
+                result = syscall_no_intercept(a7, a0, a1, a2, a3, a4, a5);
+                post_clone_hook(result);
+                return (struct wrapper_ret) { .a[0] = result, .a[1] = 1 };
+            default:
+                break;
+        }
         return (struct wrapper_ret) { .a[0] = a0, .a[1] = 0 };
     } else {
         return (struct wrapper_ret) { .a[0] = result, .a[1] = 1 };
@@ -513,7 +631,7 @@ static void rewrite_code(void)
 								}
 								{
 									int64_t from, to;
-									from = strtol(&addr[0], NULL, 16);
+									from = vp_strtol(&addr[0], NULL, 16);
 									if (from == 0) {
 										/*
 										 * this is trampoline code.
@@ -521,7 +639,7 @@ static void rewrite_code(void)
 										 */
 										break;
 									}
-									to = strtol(&addr[k + 1], NULL, 16);
+									to = vp_strtol(&addr[k + 1], NULL, 16);
 									disassemble_and_rewrite((char *) from,
 											(size_t) to - from,
 											mem_prot);
@@ -561,15 +679,15 @@ static void load_hook_lib(void)
 			return;
 		}
 
-		handle = dlopen(filename, RTLD_NOW | RTLD_LOCAL);
+		handle = dlmopen(LM_ID_NEWLM, filename, RTLD_NOW | RTLD_LOCAL);
 		if (!handle) {
-			fprintf(stderr, "dlopen failed: %s\n\n", dlerror());
+			fprintf(stderr, "dlmopen failed: %s\n\n", dlerror());
 			fprintf(stderr, "NOTE: this may occur when the compilation of your hook function library misses some specifications in LDFLAGS. or if you are using a C++ compiler, dlmopen may fail to find a symbol, and adding 'extern \"C\"' to the definition may resolve the issue.\n");
 			exit(1);
 		}
 	}
 	{
-		int (*hook_init)(long, void *, void **);
+		int (*hook_init)(long, void *, void **, void **, void **);
 		hook_init = dlsym(handle, "__hook_init");
 		if (hook_init == NULL) {
 			fprintf(stderr, "dlsym failed: %s\n\n", dlerror());
@@ -577,13 +695,17 @@ static void load_hook_lib(void)
 		}
 
 	    void *user_hook_ptr = NULL;
+	    void *user_post_clone_hook_child_ptr = NULL;
+        void *user_post_clone_hook_parent_ptr = NULL;
 		int init_state = -1;
-		init_state = hook_init(0, (void *)syscall_no_intercept, &user_hook_ptr);
+		init_state = hook_init(0, (void *)syscall_no_intercept, &user_hook_ptr, &user_post_clone_hook_child_ptr, &user_post_clone_hook_parent_ptr);
 		if (init_state != 0) {
 			fprintf(stderr, "Error: hook_init failed initialization: return value = %d", init_state);
 			exit(EXIT_FAILURE);
 		}
 	    hook_fn = (hook_fn_t) user_hook_ptr;
+	    post_clone_hook_fn_child = (post_clone_hook_fn_child_t) user_post_clone_hook_child_ptr;
+        post_clone_hook_fn_parent = (post_clone_hook_fn_parent_t) user_post_clone_hook_parent_ptr;
 	}
 }
 
@@ -656,6 +778,15 @@ __attribute__((constructor(0xffff))) static void __vpoline_init(void)
 #endif
 
     define_ret_sequence_info();
+
+	check_ziccif_support();
+
+	/*
+	 * we register the current thread ID as the first one of the possible
+	 * concurrent threads which will execute in the same memory space
+	 */
+	memset(active_tids, 0, sizeof(active_tids));
+	active_tids[0] = (pid_t)syscall_no_intercept(SYS_gettid);
 
     init_trap_handler();
 
