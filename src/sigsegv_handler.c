@@ -430,8 +430,6 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
      * SIGSEGV to the user registered handler (if any) or to the default kernel
      * handler
      */
-    // TODO: this works fine, but we need to reconsider how we treat compressed
-    //  instructions for coherence reasons
     if ((fault_addr < xom_start || fault_addr > xom_end)  /*||
         ((*(uint16_t *)pc & 0x3) != 0x3)||
         (((*(uint32_t *)pc >> 15) & 0x1F) != 0x3)*/) {
@@ -522,9 +520,6 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
 
     uint8_t opcode, funct3;
     uint8_t rd, rs2;
-    // TODO: add support for all instructions writing or reading in memory from
-    //  all ISA extensions. Currently this functions supports I, C and F (need
-    //  A too). To check currently supported instructions check rv_opcodes.h
     if (is_32bit) {
 
         uint32_t instr = *(uint32_t *) pc;
@@ -608,8 +603,6 @@ void segfault_handler(int sig, siginfo_t *si, void *context)
 
     const int pc_step = is_32bit ? 4 : 2;
 
-    //  TODO: At the moment, we don't do JIT patching of AMO instructions. The second
-    //   operand of the AND will be removed from the following if statement.
     if (is_32bit && (opcode != AMO_OPCODE)) {
 
         const uintptr_t page_start = pc & ~(page_size -1);

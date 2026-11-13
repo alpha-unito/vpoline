@@ -89,9 +89,14 @@ if (BUILD_TESTS)
     # you should add test names here; CMake expects test source files to be
     # named <test_name>_test.c and hook libraries to be named hook_<test_name>_test.c
     set(TESTS
-            fcntl
-            write
             clone
+            fcntl
+            fork
+            mkdirat
+            openat
+            read
+            statx
+            write
     )
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -141,6 +146,27 @@ if (BUILD_TESTS)
 
         set_tests_properties(stw_test PROPERTIES ENVIRONMENT
                 "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+
+    set(ECALL_DETECTOR_EXE "ecall_detector")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/${ECALL_DETECTOR_EXE}.c")
+        add_executable(${ECALL_DETECTOR_EXE} test/${ECALL_DETECTOR_EXE}.c)
+
+        target_include_directories(${ECALL_DETECTOR_EXE} PRIVATE
+                ${capstone_SOURCE_DIR}/include
+        )
+
+        target_link_libraries(${ECALL_DETECTOR_EXE} PRIVATE
+                capstone
+        )
+
+        set_property(TARGET ${ECALL_DETECTOR_EXE} APPEND PROPERTY BUILD_RPATH "${capstone_BINARY_DIR}")
+        set_property(TARGET ${ECALL_DETECTOR_EXE} APPEND PROPERTY INSTALL_RPATH "${capstone_BINARY_DIR}")
+
+        add_test(NAME no_ecall_test COMMAND ${ECALL_DETECTOR_EXE})
+
+        set_tests_properties(no_ecall_test PROPERTIES ENVIRONMENT
+                "LD_PRELOAD=$<TARGET_FILE:vpoline>")
+    endif()
 
 endif ()
 
