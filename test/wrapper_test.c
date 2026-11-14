@@ -156,6 +156,8 @@ int main() {
 
     size_t len0 = strlen(input[0]);
 
+    syscall(9999, tracker, &inside_test, &current_test_idx);
+
     TEST_LIBC_WRAPPER(SYS_setxattr,setxattr(input[0], input[1], input[1], 3, XATTR_CREATE));
     TEST_LIBC_WRAPPER(SYS_lsetxattr,lsetxattr(input[0], input[1], input[1], 3, XATTR_CREATE));
     TEST_LIBC_WRAPPER(SYS_fsetxattr,fsetxattr(4, input[1], input[1], 3, XATTR_REPLACE));
@@ -246,7 +248,9 @@ int main() {
 
     TEST_LIBC_WRAPPER(SYS_readlinkat,readlinkat(2, input[0], buffer[0], len0));
     TEST_LIBC_WRAPPER(SYS_newfstatat,fstatat(AT_FDCWD, input[0], &statbuf, 0));
+#if TARGET_GLIBC_MINOR >= 39
     TEST_LIBC_WRAPPER(SYS_fstat,fstat64(2, &statbuf64));
+#endif
 
     TEST_LIBC_WRAPPER(SYS_sync,sync());
     TEST_LIBC_WRAPPER(SYS_timerfd_create,timerfd_create(CLOCK_REALTIME, TFD_CLOEXEC));
@@ -420,10 +424,11 @@ int main() {
     TEST_LIBC_WRAPPER(SYS_process_madvise,process_madvise(66, iovecbuf, 0x2000, MADV_NORMAL, 0));
     TEST_LIBC_WRAPPER(SYS_mount_setattr,mount_setattr(2, input[0], 0, p0, 0));
     TEST_LIBC_WRAPPER(SYS_process_mrelease,process_mrelease(66, 0));
+#if TARGET_GLIBC_MINOR >= 39
 #ifdef SYS_fchmodat2
     TEST_LIBC_WRAPPER(SYS_fchmodat2,fchmodat(AT_FDCWD, input[0], 0644, AT_SYMLINK_NOFOLLOW));
 #endif
-
+#endif
     print_report();
 
     return 0;

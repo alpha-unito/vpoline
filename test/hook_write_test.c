@@ -50,7 +50,10 @@ static long hook_function(long syscall_number, long a0, long a1,
 }
 
 int __hook_init(long placeholder __attribute__((unused)),
-        void *no_intercept_ptr, void **out_hook_ptr)
+        void *no_intercept_ptr,
+        void **out_hook_ptr,
+        void **out_post_clone_child_ptr,
+        void **out_post_clone_parent_ptr)
 {
     printf("output from __hook_init: we can do some init work here\n");
 
