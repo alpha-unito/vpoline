@@ -24,8 +24,6 @@
 
 extern ReturnSequenceInfo rsi;
 
-// void segfault_handler(int sig, siginfo_t *si, void *context);
-
 /*
  * the layout of this struct is dependent on which order registers get saved
  * on the stack in patcher.c:104-169

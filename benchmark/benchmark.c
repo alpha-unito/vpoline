@@ -162,13 +162,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // char *ls_argv[] = {"/usr/bin/ls", "-l", ".", NULL};
-    // char *gzip_argv[] = {"/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
-    // char *mem_argv[] = {"./mem_stresser", NULL};
-    // char *strace_ls_argv[] = {"/usr/bin/strace", "/usr/bin/ls", "-l", ".", NULL};
-    // char *strace_gzip_argv[] = {"/usr/bin/strace", "/usr/bin/gzip", "-k", "-f", "-5", LIBZPOLINE, NULL};
-    // char *strace_mem_argv[] = {"/usr/bin/strace", "./mem_stresser", NULL};
-
     char *dd_argv[] = {"/usr/bin/dd", "if=/dev/zero", "of=/dev/null", "bs=4k", "count=100000", NULL};
     char *sha_argv[] = {"/usr/bin/sha256sum", JUNK_FILE, NULL};
     char *dummy_argv[] = {DUMMY_EXE, NULL};
