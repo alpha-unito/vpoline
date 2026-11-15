@@ -1,5 +1,5 @@
 /**
-* Copyright 2026 University of Turin
+ * Copyright 2026 University of Turin
  * Copyright 2021 Kenichi Yasukata
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,44 +15,30 @@
  * limitations under the License.
  */
 
+#include <fcntl.h>
 #include <libvpoline.h>
 
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 
 static syscall_no_intercept_t syscall_no_intercept = NULL;
 
-static long hook_function(long syscall_number, long a0, long a1,
+static int hook_function(long syscall_number, long a0, long a1,
                     long a2, long a3, long a4, long a5, long *result)
 {
-    (void) a0;
-    (void) a2;
-    (void) a3;
-    (void) a4;
-    (void) a5;
-
-    if (syscall_number == SYS_clone) {
-        char buf[128];
-        sprintf(buf, "output from hook_function: syscall number %ld\n", syscall_number);
-        syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
+    if (syscall_number == SYS_statx) {
+        const char file2[] = "testfile2.txt";
+        const char *tmp = file2;
+        if (strcmp((char *)a1, tmp) == 0) {
+            const char testfile[] = "testfile.txt";
+            syscall_no_intercept(syscall_number, a0, testfile, a2, a3, a4, a5, result);
+            return 0;
+        }
     }
     return 1;
-}
-
-static void post_clone_child()
-{
-    char buf[128];
-    sprintf(buf, "output from post_clone_child\n");
-    syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
-}
-
-static void post_clone_parent(long a0)
-{
-    char buf[128];
-    sprintf(buf, "output from post_clone_parent\n");
-    syscall_no_intercept(SYS_write, 1, (uintptr_t)buf, strlen(buf));
 }
 
 int __hook_init(long placeholder __attribute__((unused)),
@@ -61,14 +47,8 @@ int __hook_init(long placeholder __attribute__((unused)),
         void **out_post_clone_child_ptr,
         void **out_post_clone_parent_ptr)
 {
-    printf("output from __hook_init: we can do some init work here\n");
 
     syscall_no_intercept = (syscall_no_intercept_t)no_intercept_ptr;
     *out_hook_ptr= (void *)hook_function;
-    if (out_post_clone_child_ptr != NULL)
-        *out_post_clone_child_ptr = (void *)post_clone_child;
-
-    if (out_post_clone_parent_ptr != NULL)
-        *out_post_clone_parent_ptr = (void *)post_clone_parent;
     return 0;
 }

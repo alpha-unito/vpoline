@@ -15,10 +15,9 @@
  * limitations under the License.
  */
 
+#include <libvpoline.h>
+
 #include <fcntl.h>
-
-#include "../include/libvpoline.h"
-
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
