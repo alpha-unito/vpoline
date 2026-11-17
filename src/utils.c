@@ -51,7 +51,7 @@ void define_ret_sequence_info()
     rsi.start_addr_page = (void *)((uintptr_t)rsi.start_addr & page_mask);
     rsi.end_addr_page = (void *)((uintptr_t)rsi.end_addr & page_mask);
 
-    rsi.protection_size = rsi.end_addr_page - rsi.start_addr_page + page_size;
+    rsi.protection_size = rsi.end_addr_page - rsi.start_addr_page + page_size*2;
 
 #ifdef DEBUG
     char buf[200];
@@ -59,7 +59,7 @@ void define_ret_sequence_info()
         "Read-Write memory page pointed by original GP:\n"
         "0x%" PRIXPTR " - 0x%" PRIXPTR "\n",
         (uintptr_t)rsi.start_addr_page,
-        (uintptr_t)rsi.start_addr_page + rsi.protection_size);
+        (uintptr_t)rsi.start_addr_page + rsi.protection_size/2);
     write(2, buf, strlen(buf));
 #endif
 }
